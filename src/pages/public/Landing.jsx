@@ -49,7 +49,7 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-950 text-white">
       {/* Navbar - Full Width */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-gray-900/95 backdrop-blur-sm shadow-lg' : 'bg-transparent'}`}>
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -106,13 +106,13 @@ const Landing = () => {
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight text-white">
             We Turn Your Business Ideas{' '}
             <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               Into Digital Reality
             </span>
           </h1>
-          <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-3xl mx-auto">
+          <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-3xl mx-auto">
             From websites to full business systems — we build custom digital solutions for Filipino businesses.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -129,19 +129,19 @@ const Landing = () => {
       {/* Services Section */}
       <section id="services" className="py-20 bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4">What We Build</h2>
-          <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">What We Build</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
             Custom digital solutions tailored to your business needs
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, idx) => (
-              <div 
+              <div
                 key={idx}
                 className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:transform hover:-translate-y-1 transition-all duration-300 group"
               >
                 <div className="text-4xl mb-4">{service.icon}</div>
-                <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors">{service.title}</h3>
+                <h3 className="text-lg font-semibold mb-2 text-white group-hover:text-blue-400 transition-colors">{service.title}</h3>
                 <p className="text-gray-400 text-sm">{service.desc}</p>
               </div>
             ))}
@@ -150,9 +150,9 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20">
+      <section className="py-20 bg-gray-950">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-16">How It Works</h2>
+          <h2 className="text-4xl font-bold text-center mb-16 text-white">How It Works</h2>
           
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
             {[
@@ -165,8 +165,8 @@ const Landing = () => {
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4">
                   {item.icon}
                 </div>
-                <h3 className="font-semibold text-lg mb-1">{item.step}. {item.title}</h3>
-                <p className="text-gray-400 text-sm text-center max-w-[200px]">{item.desc}</p>
+                <h3 className="font-semibold text-lg mb-1 text-white">{item.step}. {item.title}</h3>
+                <p className="text-gray-300 text-sm text-center max-w-[200px]">{item.desc}</p>
                 {idx < 3 && (
                   <div className="hidden md:block w-24 h-0.5 bg-gradient-to-r from-blue-500 to-transparent mt-8"></div>
                 )}
@@ -179,12 +179,12 @@ const Landing = () => {
       {/* Pricing Section */}
       <section id="pricing" className="py-20 bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-gray-400 text-center mb-12">Choose what works best for your business</p>
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Simple, Transparent Pricing</h2>
+          <p className="text-gray-300 text-center mb-12">Choose what works best for your business</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {pricingTiers.map((tier, idx) => (
-              <div 
+              <div
                 key={idx}
                 className={`relative bg-gray-800 border rounded-xl p-6 transition-all hover:transform hover:-translate-y-1 ${tier.recommended ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-700'}`}
               >
@@ -194,12 +194,12 @@ const Landing = () => {
                   </div>
                 )}
                 <div className="text-4xl mb-4">{tier.icon}</div>
-                <h3 className="text-xl font-bold mb-1">{tier.name}</h3>
+                <h3 className="text-xl font-bold mb-1 text-white">{tier.name}</h3>
                 <p className="text-2xl font-bold text-blue-400 mb-4">{tier.price}</p>
                 <ul className="space-y-2">
                   {tier.features.map((feature, fIdx) => (
-                    <li key={fIdx} className="text-gray-400 text-sm flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <li key={fIdx} className="text-gray-300 text-sm flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                       {feature}
@@ -210,23 +210,23 @@ const Landing = () => {
             ))}
           </div>
           
-          <p className="text-center text-gray-400">
+          <p className="text-center text-gray-300">
             Or choose <span className="text-white font-semibold">Build Only</span> — one-time payment, no monthly fees
           </p>
         </div>
       </section>
 
       {/* Why Choose Us */}
-      <section id="why-us" className="py-20">
+      <section id="why-us" className="py-20 bg-gray-950">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-12">Why CronzPH?</h2>
+          <h2 className="text-4xl font-bold text-center mb-12 text-white">Why CronzPH?</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {whyUs.map((item, idx) => (
               <div key={idx} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/30 transition-colors">
                 <div className="text-3xl mb-4">{item.icon}</div>
-                <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
-                <p className="text-gray-400">{item.desc}</p>
+                <h3 className="text-lg font-semibold mb-2 text-white">{item.title}</h3>
+                <p className="text-gray-300">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -236,7 +236,7 @@ const Landing = () => {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to digitize your business?</h2>
+          <h2 className="text-4xl font-bold mb-4 text-white">Ready to digitize your business?</h2>
           <p className="text-xl text-gray-300 mb-8">Get started today — free consultation!</p>
           <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
             Start Your Project
@@ -249,13 +249,13 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
-              <h3 className="text-2xl font-bold mb-4">
+              <h3 className="text-2xl font-bold mb-4 text-white">
                 Cronz<span className="text-blue-400">PH</span>
               </h3>
               <p className="text-gray-400">We Build. You Grow.</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <div className="space-y-2">
                 <Link to="/inquiry" className="block text-gray-400 hover:text-white transition-colors">Get Started</Link>
                 <button onClick={() => scrollToSection('services')} className="block text-gray-400 hover:text-white transition-colors text-left">Services</button>
@@ -263,7 +263,7 @@ const Landing = () => {
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
+              <h4 className="font-semibold mb-4 text-white">Contact</h4>
               <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18.77,7.46H14.5v-1.9c0-.9.6-1.1,1-1.1h3V.5H14.17c-2.76,0-3.33,1.66-3.33,3.36v1.7H7.5v2.6h3.34v7.39h4.32v-7.39h3.22l.72-2.6Z"/>
