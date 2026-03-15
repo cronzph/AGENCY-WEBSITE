@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Settings - public read, no write
+    match /settings/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Projects - public create, no read/write
+    match /projects/{projectId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Payments - public create, no read/write
+    match /payments/{paymentId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Notifications - no public access
+    match /notifications/{notifId} {
+      allow read, write: if false;
+    }
+  }
+}
