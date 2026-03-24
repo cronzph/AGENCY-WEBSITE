@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
 import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
 
 const Projects = () => {
-  const [authReady, setAuthReady] = useState(false);
+
   const [projects, setProjects] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSending, setIsSending] = useState(null);
@@ -130,11 +130,7 @@ const Projects = () => {
   };
 
   useEffect(() => {
-    if (!authReady) return;
-
-    const projectsQuery = query(
-      collection(db, 'projects')
-    );
+    const projectsQuery = query(collection(db, 'projects'));
 
     const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({
@@ -142,10 +138,12 @@ const Projects = () => {
         ...doc.data()
       }));
       setProjects(projectsData);
+    }, (error) => {
+      console.error('Firestore projects error:', error);
     });
 
     return () => unsubscribe();
-  }, [authReady]);
+  }, []);
 
   const handleSendProposal = async (projectId) => {
     setIsSending(projectId);
