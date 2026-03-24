@@ -38,6 +38,12 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const BugIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
+
 const LockIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -73,6 +79,7 @@ const navItems = [
   { path: '/admin/clients', label: 'Clients', icon: ClientsIcon },
   { path: '/admin/projects', label: 'Projects', icon: ProjectsIcon },
   { path: '/admin/payments', label: 'Payments', icon: PaymentsIcon },
+  { path: '/admin/bugs', label: 'Bug Reports', icon: BugIcon },
   { path: '/admin/settings', label: 'Settings', icon: SettingsIcon },
   { path: '/admin/change-password', label: 'Change Password', icon: LockIcon },
 ];
@@ -158,7 +165,7 @@ const AdminLayout = () => {
     <div className="min-h-screen bg-gray-950">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -169,7 +176,7 @@ const AdminLayout = () => {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
           <span className="text-xl font-bold text-white">AgencyAdmin</span>
-          <button 
+          <button
             className="lg:hidden text-gray-400 hover:text-white"
             onClick={() => setSidebarOpen(false)}
           >
@@ -186,11 +193,10 @@ const AdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
+                  }`}
               >
                 <item.icon />
                 <span className="font-medium">{item.label}</span>

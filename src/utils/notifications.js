@@ -80,6 +80,14 @@ export const createNotifications = {
       clientName: project.clientName,
     });
   },
+
+  bugReportSubmitted: async (project, bugReport) => {
+    return createNotification('bug_report', {
+      message: `Bug report submitted: ${bugReport.title}`,
+      projectId: project.id,
+      clientName: project.clientName,
+    });
+  },
 };
 
 export const markAsRead = async (notificationId) => {
@@ -118,6 +126,7 @@ export const getNotificationIcon = (type) => {
     project_delivered: '🚀',
     discovery_completed: '📋',
     contract_signed: '📝',
+    bug_report: '🐛',
   };
   return icons[type] || '🔔';
 };
@@ -136,6 +145,8 @@ export const getNotificationLink = (notification) => {
       return `/admin/projects/${notification.projectId}/discovery`;
     case 'contract_signed':
       return `/admin/projects/${notification.projectId}/contract`;
+    case 'bug_report':
+      return '/admin/bugs';
     default:
       return '/admin';
   }
