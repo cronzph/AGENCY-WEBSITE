@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
 
@@ -133,8 +133,7 @@ const Projects = () => {
     if (!authReady) return;
 
     const projectsQuery = query(
-      collection(db, 'projects'),
-      orderBy('createdAt', 'desc')
+      collection(db, 'projects')
     );
 
     const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
