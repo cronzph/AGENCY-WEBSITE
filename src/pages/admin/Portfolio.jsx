@@ -31,16 +31,21 @@ const Portfolio = () => {
 
     // Fetch portfolio items
     useEffect(() => {
-        const portfolioQuery = query(collection(db, 'portfolio'), orderBy('createdAt', 'desc'));
+        const portfolioQuery = query(collection(db, 'portfolio'));
         const unsubscribePortfolio = onSnapshot(portfolioQuery, (snapshot) => {
             setPortfolioItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }, (err) => {
+            console.error('Portfolio fetch error:', err);
         });
 
         // Fetch testimonials from ratings collection
-        const ratingsQuery = query(collection(db, 'ratings'), orderBy('createdAt', 'desc'));
+        const ratingsQuery = query(collection(db, 'ratings'));
         const unsubscribeRatings = onSnapshot(ratingsQuery, (snapshot) => {
             setTestimonials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setLoading(false);
+        }, (err) => {
+            console.error('Ratings fetch error:', err);
+            setLoading(false); // always stop loading even on error
         });
 
         return () => {
