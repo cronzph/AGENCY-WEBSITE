@@ -64,6 +64,22 @@ export const createNotifications = {
       clientName: project.clientName,
     });
   },
+
+  discoveryCompleted: async (project) => {
+    return createNotification('discovery_completed', {
+      message: `Discovery completed for: ${project.businessName}`,
+      projectId: project.id,
+      clientName: project.clientName,
+    });
+  },
+
+  contractSigned: async (project) => {
+    return createNotification('contract_signed', {
+      message: `Contract signed by ${project.clientName}`,
+      projectId: project.id,
+      clientName: project.clientName,
+    });
+  },
 };
 
 export const markAsRead = async (notificationId) => {
@@ -100,6 +116,8 @@ export const getNotificationIcon = (type) => {
     payment_submitted: '💰',
     payment_confirmed: '💚',
     project_delivered: '🚀',
+    discovery_completed: '📋',
+    contract_signed: '📝',
   };
   return icons[type] || '🔔';
 };
@@ -114,6 +132,10 @@ export const getNotificationLink = (notification) => {
       return `/admin/projects`;
     case 'project_delivered':
       return `/admin/projects`;
+    case 'discovery_completed':
+      return `/admin/projects/${notification.projectId}/discovery`;
+    case 'contract_signed':
+      return `/admin/projects/${notification.projectId}/contract`;
     default:
       return '/admin';
   }

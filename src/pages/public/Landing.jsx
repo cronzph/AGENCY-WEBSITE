@@ -4,6 +4,65 @@ import { Link } from 'react-router-dom';
 const Landing = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedRevenue, setSelectedRevenue] = useState(null);
+  const [recommendedTier, setRecommendedTier] = useState(null);
+
+  const tierData = {
+    'below-50k': {
+      icon: '🌱',
+      name: 'Starter',
+      price: '₱2,000-₱3,500/mo',
+      features: [
+        'Hosting & uptime',
+        'Critical bug fixes',
+        '1 minor update/month',
+        'FB support (48hr)'
+      ]
+    },
+    '50k-200k': {
+      icon: '🚀',
+      name: 'Growth',
+      price: '₱5,000-₱8,000/mo',
+      features: [
+        'Everything in Starter',
+        '3 minor updates/month',
+        '1 major update/quarter',
+        '24hr support',
+        'Monthly analytics'
+      ]
+    },
+    '200k-500k': {
+      icon: '💼',
+      name: 'Business',
+      price: '₱15,000-₱25,000/mo',
+      features: [
+        'Everything in Growth',
+        'Unlimited minor updates',
+        '2 major updates/month',
+        '12hr priority support',
+        'AI features',
+        '1 new feature/month'
+      ]
+    },
+    '500k-plus': {
+      icon: '🏢',
+      name: 'Enterprise',
+      price: '₱30,000-₱50,000/mo',
+      features: [
+        'Everything in Business',
+        'Unlimited major updates',
+        '7-day support',
+        'Weekly reports',
+        'Features on request',
+        'DB backup'
+      ]
+    }
+  };
+
+  const handleRevenueSelect = (value) => {
+    setSelectedRevenue(value);
+    setRecommendedTier(tierData[value]);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,10 +92,56 @@ const Landing = () => {
   ];
 
   const pricingTiers = [
-    { icon: '🌱', name: 'Starter', price: '₱500-800/mo', features: ['Basic website', 'Email support', 'Monthly updates'] },
-    { icon: '🚀', name: 'Growth', price: '₱1,000-2,000/mo', features: ['Full website', 'Priority support', 'Weekly updates', 'Basic analytics'], recommended: true },
-    { icon: '💼', name: 'Business', price: '₱3,000-5,000/mo', features: ['E-commerce ready', '24/7 support', 'Daily updates', 'Advanced analytics', 'API integrations'] },
-    { icon: '🏢', name: 'Enterprise', price: '₱8,000-15,000/mo', features: ['Custom solutions', 'Dedicated manager', 'Real-time sync', 'Custom integrations', 'SLA guarantee'] },
+    {
+      icon: '🌱',
+      name: 'Starter',
+      price: '₱2,000-₱3,500/mo',
+      features: [
+        'Hosting & uptime',
+        'Critical bug fixes',
+        '1 minor update/month',
+        'FB support (48hr)'
+      ]
+    },
+    {
+      icon: '🚀',
+      name: 'Growth',
+      price: '₱5,000-₱8,000/mo',
+      features: [
+        'Everything in Starter',
+        '3 minor updates/month',
+        '1 major update/quarter',
+        '24hr support',
+        'Monthly analytics'
+      ],
+      recommended: true
+    },
+    {
+      icon: '💼',
+      name: 'Business',
+      price: '₱15,000-₱25,000/mo',
+      features: [
+        'Everything in Growth',
+        'Unlimited minor updates',
+        '2 major updates/month',
+        '12hr priority support',
+        'AI features',
+        '1 new feature/month'
+      ]
+    },
+    {
+      icon: '🏢',
+      name: 'Enterprise',
+      price: '₱30,000-₱50,000/mo',
+      features: [
+        'Everything in Business',
+        'Unlimited major updates',
+        '7-day support',
+        'Weekly reports',
+        'Features on request',
+        'DB backup'
+      ]
+    },
   ];
 
   const whyUs = [
@@ -62,6 +167,8 @@ const Landing = () => {
             <div className="hidden md:flex items-center gap-8">
               <button onClick={() => scrollToSection('services')} className="text-gray-300 hover:text-white transition-colors">Services</button>
               <button onClick={() => scrollToSection('pricing')} className="text-gray-300 hover:text-white transition-colors">Pricing</button>
+              <button onClick={() => scrollToSection('students')} className="text-gray-300 hover:text-white transition-colors">Students</button>
+              <button onClick={() => scrollToSection('quick-fix')} className="text-gray-300 hover:text-white transition-colors">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="text-gray-300 hover:text-white transition-colors">Why Us</button>
               <Link to="/inquiry" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
                 Get Started
@@ -87,6 +194,8 @@ const Landing = () => {
             <div className="px-4 py-4 space-y-3">
               <button onClick={() => scrollToSection('services')} className="block w-full text-left text-gray-300 hover:text-white py-2">Services</button>
               <button onClick={() => scrollToSection('pricing')} className="block w-full text-left text-gray-300 hover:text-white py-2">Pricing</button>
+              <button onClick={() => scrollToSection('students')} className="block w-full text-left text-gray-300 hover:text-white py-2">Students</button>
+              <button onClick={() => scrollToSection('quick-fix')} className="block w-full text-left text-gray-300 hover:text-white py-2">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="block w-full text-left text-gray-300 hover:text-white py-2">Why Us</button>
               <Link to="/inquiry" className="block w-full text-center px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">
                 Get Started
@@ -133,7 +242,7 @@ const Landing = () => {
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
             Custom digital solutions tailored to your business needs
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, idx) => (
               <div
@@ -153,7 +262,7 @@ const Landing = () => {
       <section className="py-20 bg-gray-950">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-16 text-white">How It Works</h2>
-          
+
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
             {[
               { step: 1, icon: '📝', title: 'Submit Inquiry', desc: "Tell us about your project via our simple form" },
@@ -181,7 +290,7 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Simple, Transparent Pricing</h2>
           <p className="text-gray-300 text-center mb-12">Choose what works best for your business</p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {pricingTiers.map((tier, idx) => (
               <div
@@ -209,7 +318,7 @@ const Landing = () => {
               </div>
             ))}
           </div>
-          
+
           <p className="text-center text-gray-300">
             Or choose <span className="text-white font-semibold">Build Only</span> — one-time payment, no monthly fees
           </p>
@@ -220,7 +329,7 @@ const Landing = () => {
       <section id="why-us" className="py-20 bg-gray-950">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-12 text-white">Why CronzPH?</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {whyUs.map((item, idx) => (
               <div key={idx} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/30 transition-colors">
@@ -229,6 +338,287 @@ const Landing = () => {
                 <p className="text-gray-300">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Build Only Section */}
+      <section id="build-only" className="py-20 bg-gray-800/50">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Build Only Option</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            One-time payment for clients who prefer to maintain their systems themselves
+          </p>
+
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-8">
+            <h3 className="text-2xl font-bold text-white mb-4">One-Time Payment Model</h3>
+            <p className="text-gray-300 mb-6">
+              Pay once for development and own the system outright. No monthly fees, no recurring costs.
+            </p>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">Why SaaS is Recommended</h3>
+              <ul className="space-y-2 text-gray-300 list-disc pl-5">
+                <li>Continuous updates and improvements</li>
+                <li>Priority support when issues arise</li>
+                <li>Regular security patches and maintenance</li>
+                <li>Scalability as your business grows</li>
+                <li>Access to new features as they're developed</li>
+              </ul>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">Per-Issue Pricing (After 30-Day Warranty)</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Issues fixed during the 30-day warranty period are FREE. After that:
+              </p>
+              <table className="w-full text-left text-gray-300">
+                <thead>
+                  <tr>
+                    <th className="p-3 border-b">Bug Type</th>
+                    <th className="p-3 border-b">Free Period</th>
+                    <th className="p-3 border-b">After 30 Days</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="p-3 border-t">Minor (cosmetic)</td>
+                    <td className="p-3 border-t">30 days ✅</td>
+                    <td className="p-3 border-t">FREE always</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border-t">Medium (broken feature)</td>
+                    <td className="p-3 border-t">30 days ✅</td>
+                    <td className="p-3 border-t">₱1,000-₱2,500</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border-t">Major (core broken)</td>
+                    <td className="p-3 border-t">30 days ✅</td>
+                    <td className="p-3 border-t">₱2,500-₱5,000</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border-t">Critical (system down)</td>
+                    <td className="p-3 border-t">30 days ✅</td>
+                    <td className="p-3 border-t">₱5,000+</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Per-Issue Pricing Section */}
+      <section id="per-issue" className="py-20 bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Per-Issue Pricing</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Transparent pricing for issue resolution after the initial 30-day warranty
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-xl">
+              <thead>
+                <tr>
+                  <th className="p-4 border-b text-left text-gray-300">Bug Type</th>
+                  <th className="p-4 border-b text-left text-gray-300">Free Period</th>
+                  <th className="p-4 border-b text-left text-gray-300">After 30 Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Minor (cosmetic)</td>
+                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
+                  <td className="p-4 border-t text-gray-300">FREE always</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Medium (broken feature)</td>
+                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
+                  <td className="p-4 border-t text-gray-300">₱1,000-₱2,500</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Major (core broken)</td>
+                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
+                  <td className="p-4 border-t text-gray-300">₱2,500-₱5,000</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Critical (system down)</td>
+                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
+                  <td className="p-4 border-t text-gray-300">₱5,000+</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-6 text-center text-gray-400 text-sm">
+            All issues resolved within 30 days of delivery are covered under our warranty at no additional cost.
+          </p>
+        </div>
+      </section>
+
+      {/* Students/Capstone Section */}
+      <section id="students" className="py-20 bg-gray-800/50">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Students & Capstone Projects</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Special pricing for academic projects and school activities
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {/* Simple Capstone */}
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-3">Simple Capstone</h3>
+              <p className="text-gray-300 mb-2">₱3,000-₱8,000</p>
+              <p className="text-gray-400 text-sm mb-3">Basic functionality, minimal features</p>
+            </div>
+
+            {/* Medium Capstone */}
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-3">Medium Capstone</h3>
+              <p className="text-gray-300 mb-2">₱8,000-₱15,000</p>
+              <p className="text-gray-400 text-sm mb-3">Standard features, moderate complexity</p>
+            </div>
+
+            {/* Complex Capstone */}
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-3">Complex Capstone</h3>
+              <p className="text-gray-300 mb-2">₱15,000-₱25,000</p>
+              <p className="text-gray-400 text-sm mb-3">Advanced features, high complexity</p>
+            </div>
+
+            {/* School Activity System */}
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-3">School Activity System</h3>
+              <p className="text-gray-300 mb-2">₱1,500-₱5,000</p>
+              <p className="text-gray-400 text-sm mb-3">Event management, attendance tracking, etc.</p>
+            </div>
+          </div>
+
+          <div className="mt-8 p-6 bg-gray-900 border border-gray-700 rounded-xl">
+            <h3 className="text-xl font-bold text-white mb-4">Important Notes</h3>
+            <ul className="space-y-2 text-gray-300 list-disc pl-5">
+              <li>Rush fees apply: +20% (1-2 weeks), +50% (&lt;1 week), +100% (&lt;3 days)</li>
+              <li>Note: NO documentation included in standard packages</li>
+              <li>Revisions limited to 3 rounds unless otherwise specified</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Quick Fix Services Section */}
+      <section id="quick-fix" className="py-20 bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Quick Fix Services</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Fast, affordable solutions for common website and system issues
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-xl">
+              <thead>
+                <tr>
+                  <th className="p-4 border-b text-left text-gray-300">Service</th>
+                  <th className="p-4 border-b text-left text-gray-300">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Minor bug fix</td>
+                  <td className="p-4 border-t text-gray-300">₱300-₱500</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">UI/layout fix</td>
+                  <td className="p-4 border-t text-gray-300">₱500-₱1,000</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Content update</td>
+                  <td className="p-4 border-t text-gray-300">₱200-₱500</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Feature tweak</td>
+                  <td className="p-4 border-t text-gray-300">₱1,000-₱2,500</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Major bug fix</td>
+                  <td className="p-4 border-t text-gray-300">₱2,500-₱5,000</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-4 border-t text-gray-300">Rush (same day)</td>
+                  <td className="p-4 border-t text-gray-300">+50%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-6 text-center text-gray-400 text-sm">
+            Rush service guarantees same-day resolution for critical issues affecting business operations.
+          </p>
+        </div>
+      </section>
+
+      {/* Smart Tier Recommender */}
+      <section id="tier-recommender" className="py-20 bg-gradient-to-r from-blue-900/30 to-purple-900/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Find Your Perfect Plan</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Answer a few questions to get a personalized recommendation
+          </p>
+
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4">What's your monthly business revenue?</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { value: 'below-50k', label: 'Below ₱50,000', recommended: 'Starter plan' },
+                    { value: '50k-200k', label: '₱50,000 - ₱200,000', recommended: 'Growth plan' },
+                    { value: '200k-500k', label: '₱200,000 - ₱500,000', recommended: 'Business plan' },
+                    { value: '500k-plus', label: '₱500,000+', recommended: 'Enterprise plan' },
+                  ].map((option, idx) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleRevenueSelect(option.value)}
+                      className={`cursor-pointer p-4 rounded-lg transition-all text-left ${selectedRevenue === option.value
+                          ? 'bg-blue-600/20 border-2 border-blue-500'
+                          : 'bg-gray-900 border border-gray-700 hover:border-blue-500'
+                        }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{option.label}</p>
+                          <p className="text-gray-400 text-sm">{option.recommended} recommended</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {recommendedTier && (
+                <div className="text-center py-8 bg-gray-900 border border-gray-700 rounded-xl">
+                  <h3 className="text-2xl font-bold text-white mb-4">Your Recommended Plan</h3>
+                  <div className="text-6xl mb-4">{recommendedTier.icon}</div>
+                  <h3 className="text-xl font-bold text-blue-400 mb-2">{recommendedTier.name}</h3>
+                  <p className="text-2xl font-bold text-white mb-4">{recommendedTier.price}</p>
+                  <ul className="space-y-2 text-gray-300 text-left max-w-xl mx-auto mb-6">
+                    {recommendedTier.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all hover:scale-105">
+                    Start Inquiry
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -266,14 +656,14 @@ const Landing = () => {
               <h4 className="font-semibold mb-4 text-white">Contact</h4>
               <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.77,7.46H14.5v-1.9c0-.9.6-1.1,1-1.1h3V.5H14.17c-2.76,0-3.33,1.66-3.33,3.36v1.7H7.5v2.6h3.34v7.39h4.32v-7.39h3.22l.72-2.6Z"/>
+                  <path d="M18.77,7.46H14.5v-1.9c0-.9.6-1.1,1-1.1h3V.5H14.17c-2.76,0-3.33,1.66-3.33,3.36v1.7H7.5v2.6h3.34v7.39h4.32v-7.39h3.22l.72-2.6Z" />
                 </svg>
                 Facebook Page
               </a>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-gray-500">
-            © 2025 CronzPH. All rights reserved.
+            © 2026 CronzPH. All rights reserved.
           </div>
         </div>
       </footer>

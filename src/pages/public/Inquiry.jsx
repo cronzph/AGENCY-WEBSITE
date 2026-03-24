@@ -91,30 +91,30 @@ const Inquiry = () => {
     {
       id: 'starter',
       name: 'Starter',
-      price: '₱500-800/month',
+      price: '₱2,000-₱3,500/month',
       description: 'For: Sari-sari store, solo freelancers, small online shops',
       includes: 'Hosting & uptime, critical bug fixes, 1 minor update/month, FB support (48hr response)',
     },
     {
       id: 'growth',
       name: 'Growth',
-      price: '₱1,000-2,000/month',
+      price: '₱5,000-₱8,000/month',
       description: 'For: Restaurants, small retail, service businesses',
       includes: 'Everything in Starter + 3 minor updates/month, 1 major update/quarter, 24hr support, monthly analytics report',
     },
     {
       id: 'business',
       name: 'Business',
-      price: '₱3,000-5,000/month',
+      price: '₱15,000-₱25,000/month',
       description: 'For: Medium businesses, multi-branch',
-      includes: 'Everything in Growth + unlimited minor updates, 2 major updates/month, 12hr priority support, dedicated Messenger, AI-powered features, 1 new feature/month',
+      includes: 'Everything in Growth + unlimited minor updates, 2 major updates/month, 12hr priority support, AI features, 1 new feature/month',
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
-      price: '₱8,000-15,000/month',
+      price: '₱30,000-₱50,000/month',
       description: 'For: Large businesses, corporations',
-      includes: 'Everything in Business + unlimited major updates, 7-day support, weekly reports, new features on request, DB backup management',
+      includes: 'Everything in Business + unlimited major updates, 7-day support, weekly reports, features on request, DB backup management',
     },
   ];
 
@@ -594,6 +594,20 @@ const Inquiry = () => {
                   <div>
                     <span className="text-white font-medium">Build + SaaS</span>
                     <p className="text-gray-400 text-sm">Monthly maintenance by developer</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="student"
+                    checked={formData.paymentType === 'student'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-500 mt-1"
+                  />
+                  <div>
+                    <span className="text-white font-medium">Student/Capstone</span>
+                    <p className="text-gray-400 text-sm">Special pricing for academic projects</p>
                   </div>
                 </label>
               </div>

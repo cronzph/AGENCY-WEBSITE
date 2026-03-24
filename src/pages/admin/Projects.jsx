@@ -59,7 +59,9 @@ const Projects = () => {
     { value: 'proposal_accepted', label: 'Proposal Accepted' },
     { value: 'awaiting_payment', label: 'Awaiting Payment' },
     { value: 'payment_submitted', label: 'Payment Submitted' },
+    { value: 'payment_confirmed', label: 'Payment Confirmed' },
     { value: 'in_progress', label: 'In Progress' },
+    { value: 'discovery_completed', label: 'Discovery Completed' },
     { value: 'planning', label: 'Planning' },
     { value: 'building', label: 'Building' },
     { value: 'for_review', label: 'For Review' },
@@ -99,7 +101,9 @@ const Projects = () => {
     'proposal_accepted',
     'awaiting_payment',
     'payment_submitted',
+    'payment_confirmed',
     'in_progress',
+    'discovery_completed',
     'planning',
     'building',
     'for_review',
@@ -127,7 +131,7 @@ const Projects = () => {
 
   useEffect(() => {
     if (!authReady) return;
-    
+
     const projectsQuery = query(
       collection(db, 'projects'),
       orderBy('createdAt', 'desc')
@@ -149,13 +153,13 @@ const Projects = () => {
     try {
       const proposalLink = `${window.location.origin}/proposal/${projectId}`;
       await navigator.clipboard.writeText(proposalLink);
-      
+
       const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, {
         status: 'proposal_sent',
         proposalSentAt: new Date(),
       });
-      
+
       showToast('Proposal link copied! Send this to your client via FB Messenger', 'success');
     } catch (err) {
       console.error('Error sending proposal:', err);
@@ -182,18 +186,49 @@ const Projects = () => {
     window.open(`/proposal/${projectId}`, '_blank');
   };
 
+  const handleSendDiscovery = async (projectId) => {
+    setIsSending(projectId);
+    try {
+      const discoveryLink = `${window.location.origin}/discovery/${projectId}`;
+      await navigator.clipboard.writeText(discoveryLink);
+
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, {
+        discoveryLinkSentAt: new Date(),
+      });
+
+      showToast('Discovery link copied! Send this to your client via FB Messenger', 'success');
+    } catch (err) {
+      console.error('Error sending discovery:', err);
+      showToast('Failed to copy link. Please try again.', 'error');
+    } finally {
+      setIsSending(null);
+    }
+  };
+
+  const handleCopyDiscoveryLink = async (projectId) => {
+    try {
+      const discoveryLink = `${window.location.origin}/discovery/${projectId}`;
+      await navigator.clipboard.writeText(discoveryLink);
+      showToast('Discovery link copied to clipboard!', 'success');
+    } catch (err) {
+      console.error('Error copying link:', err);
+      showToast('Failed to copy link. Please try again.', 'error');
+    }
+  };
+
   const handleSendPaymentLink = async (projectId) => {
     setIsSending(projectId);
     try {
       const paymentLink = `${window.location.origin}/payment/${projectId}`;
       await navigator.clipboard.writeText(paymentLink);
-      
+
       const projectRef = doc(db, 'projects', projectId);
       await updateDoc(projectRef, {
         status: 'awaiting_payment',
         paymentLinkSentAt: new Date(),
       });
-      
+
       setToast('Payment link copied! Send this to your client via FB Messenger');
       setTimeout(() => setToast(''), 5000);
     } catch (err) {
@@ -232,14 +267,14 @@ const Projects = () => {
 
   const handleGenerateProjectPlan = async () => {
     if (!selectedProject) return;
-    
+
     setIsGeneratingPlan(true);
     setToast('Generating plan...');
-    
+
     try {
       const project = selectedProject;
       const ai = project.aiAssessment || {};
-      
+
       const projectInfo = `Client: ${project.clientName}\nBusiness: ${project.businessName}\nBusiness Type: ${project.businessType}\nProject Type: ${ai.projectType}\nServices Needed: ${project.servicesNeeded?.join(', ')}\nDescription: ${project.projectDescription}\nComplexity: ${ai.complexity}\nEstimated Days: ${ai.estimatedDays}\nTechnologies: ${ai.technologiesNeeded?.join(', ')}\nScope: ${ai.scopeSummary}`;
 
       const requestBody = {
@@ -277,7 +312,7 @@ const Projects = () => {
 
       const data = await response.json();
       const planText = data.choices[0].message.content;
-      
+
       // Parse JSON from response
       let projectPlan;
       try {
@@ -303,11 +338,11 @@ const Projects = () => {
 
       setToast('Project plan generated!');
       setTimeout(() => setToast(''), 5000);
-      
+
       // Refresh selected project
       const updatedSnap = await getDoc(projectRef);
       setSelectedProject({ id: updatedSnap.id, ...updatedSnap.data() });
-      
+
     } catch (err) {
       console.error('Error generating plan:', err);
       setToast('Failed to generate plan. Please try again.');
@@ -321,7 +356,7 @@ const Projects = () => {
     const projectRef = doc(db, 'projects', project.id);
     const projectSnap = await getDoc(projectRef);
     const projectData = projectSnap.data();
-    
+
     const assessment = projectData.aiAssessment || {};
     setEditForm({
       scopeSummary: assessment.scopeSummary || '',
@@ -344,11 +379,11 @@ const Projects = () => {
 
   const handleSaveProposal = async () => {
     if (!selectedProject) return;
-    
+
     setIsSaving(true);
     try {
       const projectRef = doc(db, 'projects', selectedProject.id);
-      
+
       const aiAssessment = {
         scopeSummary: editForm.scopeSummary,
         projectType: editForm.projectType,
@@ -372,7 +407,7 @@ const Projects = () => {
       setToast('Proposal updated!');
       setTimeout(() => setToast(''), 3000);
       setIsEditMode(false);
-      
+
       // Refresh selected project
       const updatedSnap = await getDoc(projectRef);
       setSelectedProject({ id: updatedSnap.id, ...updatedSnap.data() });
@@ -422,17 +457,17 @@ const Projects = () => {
   const filteredProjects = projects.filter(p => {
     const matchesStatus = filterStatus === 'all' || p.status === filterStatus;
     const matchesEmail = !emailFilter || p.email === emailFilter;
-    
+
     // Search filter
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       (p.clientName && p.clientName.toLowerCase().includes(searchLower)) ||
       (p.businessName && p.businessName.toLowerCase().includes(searchLower));
-    
+
     // Service type filter
-    const matchesService = serviceFilter === 'all' || 
+    const matchesService = serviceFilter === 'all' ||
       (p.servicesNeeded && p.servicesNeeded.includes(serviceFilter));
-    
+
     // Payment type filter
     let matchesPaymentType = true;
     if (paymentTypeFilter === 'build_only') {
@@ -440,7 +475,7 @@ const Projects = () => {
     } else if (paymentTypeFilter === 'saas') {
       matchesPaymentType = p.aiAssessment?.monthlySassPrice > 0;
     }
-    
+
     return matchesStatus && matchesEmail && matchesSearch && matchesService && matchesPaymentType;
   }).sort((a, b) => {
     // Sort
@@ -559,306 +594,339 @@ const Projects = () => {
     <div>
       {/* Page content - no layout wrapper needed */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-white">Projects</h1>
-              {emailFilter && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  {emailFilter}
-                  <button 
-                    onClick={() => navigate('/admin/projects')}
-                    className="ml-1 hover:text-white"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-            </div>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-white">Projects</h1>
+          {emailFilter && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              {emailFilter}
+              <button
+                onClick={() => navigate('/admin/projects')}
+                className="ml-1 hover:text-white"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+        </div>
 
-            {/* View Toggle */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 rounded ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`p-2 rounded ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-              </button>
-            </div>
+        {/* View Toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`p-2 rounded ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`p-2 rounded ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search client or business..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="w-full px-4 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+            />
+            <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
 
-          {/* Filter Bar */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search client or business..."
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                  className="w-full px-4 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                />
-                <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+          >
+            {statusOptions.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
 
-              {/* Status Filter */}
-              <select
-                value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-              >
-                {statusOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+          {/* Service Type Filter */}
+          <select
+            value={serviceFilter}
+            onChange={(e) => { setServiceFilter(e.target.value); setCurrentPage(1); }}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Services</option>
+            {getServiceTypes().map(service => (
+              <option key={service} value={service}>{service}</option>
+            ))}
+          </select>
 
-              {/* Service Type Filter */}
-              <select
-                value={serviceFilter}
-                onChange={(e) => { setServiceFilter(e.target.value); setCurrentPage(1); }}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Services</option>
-                {getServiceTypes().map(service => (
-                  <option key={service} value={service}>{service}</option>
-                ))}
-              </select>
+          {/* Payment Type Filter */}
+          <select
+            value={paymentTypeFilter}
+            onChange={(e) => { setPaymentTypeFilter(e.target.value); setCurrentPage(1); }}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Payment Types</option>
+            <option value="build_only">Build Only</option>
+            <option value="saas">SaaS Subscription</option>
+          </select>
 
-              {/* Payment Type Filter */}
-              <select
-                value={paymentTypeFilter}
-                onChange={(e) => { setPaymentTypeFilter(e.target.value); setCurrentPage(1); }}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Payment Types</option>
-                <option value="build_only">Build Only</option>
-                <option value="saas">SaaS Subscription</option>
-              </select>
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="status">By Status</option>
+            <option value="amount">By Amount (High)</option>
+          </select>
+        </div>
 
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="status">By Status</option>
-                <option value="amount">By Amount (High)</option>
-              </select>
-            </div>
+        {/* Clear Filters */}
+        {(searchQuery || filterStatus !== 'all' || serviceFilter !== 'all' || paymentTypeFilter !== 'all') && (
+          <button
+            onClick={() => { setSearchQuery(''); setFilterStatus('all'); setServiceFilter('all'); setPaymentTypeFilter('all'); setCurrentPage(1); }}
+            className="mt-3 text-sm text-blue-400 hover:text-blue-300"
+          >
+            Clear all filters
+          </button>
+        )}
+      </div>
 
-            {/* Clear Filters */}
-            {(searchQuery || filterStatus !== 'all' || serviceFilter !== 'all' || paymentTypeFilter !== 'all') && (
-              <button
-                onClick={() => { setSearchQuery(''); setFilterStatus('all'); setServiceFilter('all'); setPaymentTypeFilter('all'); setCurrentPage(1); }}
-                className="mt-3 text-sm text-blue-400 hover:text-blue-300"
-              >
-                Clear all filters
-              </button>
-            )}
-          </div>
+      {/* Results count */}
+      <p className="text-gray-400 text-sm mb-4">
+        Showing {paginatedProjects.length} of {filteredProjects.length} projects
+      </p>
 
-          {/* Results count */}
-          <p className="text-gray-400 text-sm mb-4">
-            Showing {paginatedProjects.length} of {filteredProjects.length} projects
-          </p>
-
-          {/* Projects Table / Cards */}
-          {viewMode === 'table' ? (
-            <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
-                    <th className="px-6 py-3">Client</th>
-                    <th className="px-6 py-3">Business</th>
-                    <th className="px-6 py-3">Type</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3">Budget</th>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedProjects.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                        No projects found
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedProjects.map((project) => (
-                      <tr key={project.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                        <td className="px-6 py-4 text-white">{project.clientName || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{project.businessName || '-'}</td>
-                        <td className="px-6 py-4 text-gray-300">{getServicesDisplay(project.servicesNeeded)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
-                            {project.status || 'inquiry'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-gray-300">
-                          {project.aiAssessment?.suggestedPrice 
-                            ? formatCurrency(project.aiAssessment.suggestedPrice)
-                            : project.budgetRange || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-gray-300">{formatDate(project.createdAt)}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setSelectedProject(project)}
-                              className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
-                            >
-                              View
-                            </button>
-                            {project.status === 'assessed' && (
-                              <button
-                                onClick={() => handleSendProposal(project.id)}
-                                disabled={isSending === project.id}
-                                className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
-                              >
-                                {isSending === project.id ? 'Sending...' : 'Send Proposal'}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* Cards View */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginatedProjects.map((project) => (
-                <div key={project.id} className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-white font-medium">{project.clientName || '-'}</h3>
-                      <p className="text-gray-400 text-sm">{project.businessName || '-'}</p>
-                    </div>
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
-                      {project.status?.replace('_', ' ') || 'inquiry'}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {project.servicesNeeded?.slice(0, 2).map((s, i) => (
-                      <span key={i} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">{s}</span>
-                    ))}
-                  </div>
-
-                  <div className="mb-3">
-                    <p className="text-gray-400 text-xs">Amount</p>
-                    <p className="text-green-400 font-semibold">
-                      {project.aiAssessment?.suggestedPrice 
+      {/* Projects Table / Cards */}
+      {viewMode === 'table' ? (
+        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
+                <th className="px-6 py-3">Client</th>
+                <th className="px-6 py-3">Business</th>
+                <th className="px-6 py-3">Type</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Budget</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    No projects found
+                  </td>
+                </tr>
+              ) : (
+                paginatedProjects.map((project) => (
+                  <tr key={project.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                    <td className="px-6 py-4 text-white">{project.clientName || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{project.businessName || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{getServicesDisplay(project.servicesNeeded)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
+                        {project.status || 'inquiry'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">
+                      {project.aiAssessment?.suggestedPrice
                         ? formatCurrency(project.aiAssessment.suggestedPrice)
                         : project.budgetRange || '-'}
-                    </p>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-3">
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>Progress</span>
-                      <span>{getProgressPercentage(project.status)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
-                        style={{ width: `${getProgressPercentage(project.status)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <p className="text-gray-500 text-xs">{formatDate(project.createdAt)}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedProject(project)}
-                        className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
-                      >
-                        View
-                      </button>
-                      {project.status === 'assessed' && (
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">{formatDate(project.createdAt)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => handleSendProposal(project.id)}
-                          disabled={isSending === project.id}
-                          className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
+                          onClick={() => setSelectedProject(project)}
+                          className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
                         >
-                          {isSending === project.id ? '...' : 'Send'}
+                          View
                         </button>
-                      )}
-                    </div>
-                  </div>
+                        {project.status === 'assessed' && (
+                          <button
+                            onClick={() => handleSendProposal(project.id)}
+                            disabled={isSending === project.id}
+                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
+                          >
+                            {isSending === project.id ? 'Sending...' : 'Send Proposal'}
+                          </button>
+                        )}
+                        {(project.status === 'in_progress' || project.status === 'payment_confirmed') && !project.discovery?.completed && (
+                          <button
+                            onClick={() => handleSendDiscovery(project.id)}
+                            disabled={isSending === project.id}
+                            className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50"
+                          >
+                            {isSending === project.id ? '...' : 'Send Discovery'}
+                          </button>
+                        )}
+                        {project.discovery?.completed && (
+                          <Link
+                            to={`/admin/projects/${project.id}/discovery`}
+                            className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
+                          >
+                            View Discovery
+                          </Link>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* Cards View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedProjects.map((project) => (
+            <div key={project.id} className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-colors">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-white font-medium">{project.clientName || '-'}</h3>
+                  <p className="text-gray-400 text-sm">{project.businessName || '-'}</p>
                 </div>
-              ))}
-            </div>
-          )}
+                <span className={`inline-block px-2 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
+                  {project.status?.replace('_', ' ') || 'inquiry'}
+                </span>
+              </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600"
-              >
-                Previous
-              </button>
-              
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let page;
-                if (totalPages <= 5) {
-                  page = i + 1;
-                } else if (currentPage <= 3) {
-                  page = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  page = totalPages - 4 + i;
-                } else {
-                  page = currentPage - 2 + i;
-                }
-                return (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {project.servicesNeeded?.slice(0, 2).map((s, i) => (
+                  <span key={i} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">{s}</span>
+                ))}
+              </div>
+
+              <div className="mb-3">
+                <p className="text-gray-400 text-xs">Amount</p>
+                <p className="text-green-400 font-semibold">
+                  {project.aiAssessment?.suggestedPrice
+                    ? formatCurrency(project.aiAssessment.suggestedPrice)
+                    : project.budgetRange || '-'}
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Progress</span>
+                  <span>{getProgressPercentage(project.status)}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full"
+                    style={{ width: `${getProgressPercentage(project.status)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <p className="text-gray-500 text-xs">{formatDate(project.createdAt)}</p>
+                <div className="flex gap-2">
                   <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-lg ${
-                      currentPage === page 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-700 text-white hover:bg-gray-600'
-                    }`}
+                    onClick={() => setSelectedProject(project)}
+                    className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
                   >
-                    {page}
+                    View
                   </button>
-                );
-              })}
-              
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600"
-              >
-                Next
-              </button>
+                  {project.status === 'assessed' && (
+                    <button
+                      onClick={() => handleSendProposal(project.id)}
+                      disabled={isSending === project.id}
+                      className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
+                    >
+                      {isSending === project.id ? '...' : 'Send'}
+                    </button>
+                  )}
+                  {(project.status === 'in_progress' || project.status === 'payment_confirmed') && !project.discovery?.completed && (
+                    <button
+                      onClick={() => handleSendDiscovery(project.id)}
+                      disabled={isSending === project.id}
+                      className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50"
+                    >
+                      {isSending === project.id ? '...' : 'Discovery'}
+                    </button>
+                  )}
+                  {project.discovery?.completed && (
+                    <Link
+                      to={`/admin/projects/${project.id}/discovery`}
+                      className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
+                    >
+                      Discovery
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600"
+          >
+            Previous
+          </button>
+
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let page;
+            if (totalPages <= 5) {
+              page = i + 1;
+            } else if (currentPage <= 3) {
+              page = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              page = totalPages - 4 + i;
+            } else {
+              page = currentPage - 2 + i;
+            }
+            return (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-4 py-2 rounded-lg ${currentPage === page
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-white hover:bg-gray-600'
+                  }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Project Details Modal */}
       {selectedProject && !isEditMode && (
@@ -892,29 +960,26 @@ const Projects = () => {
                     {statusOrder.map((step, idx) => (
                       <div key={step} className="flex items-center">
                         <div className="flex flex-col items-center">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                            getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500 text-white' :
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500 text-white' :
                             getStepStatus(selectedProject.status, step) === 'current' ? 'bg-blue-500 text-white' :
-                            'bg-gray-600 text-gray-400'
-                          }`}>
+                              'bg-gray-600 text-gray-400'
+                            }`}>
                             {getStepStatus(selectedProject.status, step) === 'completed' ? '✓' : idx + 1}
                           </div>
-                          <span className={`text-xs mt-1 whitespace-nowrap ${
-                            getStepStatus(selectedProject.status, step) === 'current' ? 'text-blue-400' : 'text-gray-500'
-                          }`}>
+                          <span className={`text-xs mt-1 whitespace-nowrap ${getStepStatus(selectedProject.status, step) === 'current' ? 'text-blue-400' : 'text-gray-500'
+                            }`}>
                             {step.replace('_', ' ')}
                           </span>
                         </div>
                         {idx < statusOrder.length - 1 && (
-                          <div className={`w-4 sm:w-8 h-0.5 mx-1 ${
-                            getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
-                          }`}></div>
+                          <div className={`w-4 sm:w-8 h-0.5 mx-1 ${getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
+                            }`}></div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Current Status</span>
                   <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(selectedProject.status)}`}>
@@ -1095,7 +1160,7 @@ const Projects = () => {
                   >
                     Copy Proposal Link
                   </button>
-                  
+
                   <button
                     onClick={() => handlePreviewProposal(selectedProject.id)}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
@@ -1138,7 +1203,7 @@ const Projects = () => {
                       {isGeneratingPlan ? 'Generating plan...' : 'Generate Project Plan'}
                     </button>
                   )}
-                  
+
                   {selectedProject.status === 'building' && (
                     <button
                       onClick={() => handleGenerateProjectPlan()}
@@ -1148,7 +1213,7 @@ const Projects = () => {
                       {isGeneratingPlan ? 'Generating plan...' : 'Generate Project Plan'}
                     </button>
                   )}
-                  
+
                   {selectedProject.status === 'planning' && (
                     <>
                       <Link
@@ -1222,7 +1287,7 @@ const Projects = () => {
                       Mark as Delivered
                     </button>
                   )}
-                  
+
                   {selectedProject.status === 'building' && !selectedProject.projectPlan && (
                     <button
                       onClick={() => handleStatusChange(selectedProject.id, 'delivered')}
@@ -1231,7 +1296,7 @@ const Projects = () => {
                       Mark as Delivered
                     </button>
                   )}
-                  
+
                   {!['delivered', 'cancelled'].includes(selectedProject.status) && (
                     <button
                       onClick={() => handleStatusChange(selectedProject.id, 'cancelled')}

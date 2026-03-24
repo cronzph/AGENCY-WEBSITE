@@ -9,6 +9,8 @@ import Inquiry from './pages/public/Inquiry'
 import Proposal from './pages/public/Proposal'
 import Payment from './pages/public/Payment'
 import Delivery from './pages/public/Delivery'
+import Discovery from './pages/public/Discovery'
+import Contract from './pages/public/Contract'
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard'
@@ -20,6 +22,8 @@ import Projects from './pages/admin/Projects'
 import Payments from './pages/admin/Payments'
 import Settings from './pages/admin/Settings'
 import ProjectPlan from './pages/admin/ProjectPlan'
+import DiscoveryView from './pages/admin/DiscoveryView'
+import ContractView from './pages/admin/ContractView'
 
 // Components
 import ProtectedRoute from './components/shared/ProtectedRoute'
@@ -37,6 +41,8 @@ createRoot(document.getElementById('root')).render(
           <Route path="/proposal/:id" element={<Proposal />} />
           <Route path="/payment/:id" element={<Payment />} />
           <Route path="/delivery/:id" element={<Delivery />} />
+          <Route path="/discovery/:id" element={<Discovery />} />
+          <Route path="/contract/:id" element={<Contract />} />
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
@@ -50,6 +56,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin/clients" element={<Clients />} />
             <Route path="/admin/projects" element={<Projects />} />
             <Route path="/admin/projects/:id/plan" element={<ProjectPlan />} />
+            <Route path="/admin/projects/:id/discovery" element={<DiscoveryView />} />
+            <Route path="/admin/projects/:id/contract" element={<ContractView />} />
             <Route path="/admin/payments" element={<Payments />} />
             <Route path="/admin/settings" element={<Settings />} />
             <Route path="/admin/change-password" element={<ChangePassword />} />
