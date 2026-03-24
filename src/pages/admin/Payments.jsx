@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { createNotifications } from '../../utils/notifications';
 import { useToast } from '../../components/shared/Toast';
 
 const Payments = () => {
+  const [authReady, setAuthReady] = useState(false);
   const [payments, setPayments] = useState([]);
   const [activeTab, setActiveTab] = useState('pending');
   const [rejectModal, setRejectModal] = useState({ open: false, paymentId: '', projectId: '', reason: 'blurry', otherReason: '' });
@@ -20,7 +22,18 @@ const Payments = () => {
     { value: 'other', label: 'Other (please specify)' },
   ];
 
+  // Wait for auth before subscribing to Firestore
   useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    
     const paymentsQuery = query(
       collection(db, 'payments'),
       orderBy('createdAt', 'desc')
@@ -35,7 +48,7 @@ const Payments = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
   const handleConfirmPayment = async (paymentData) => {
     const paymentId = paymentData?.id || paymentData?.paymentId;

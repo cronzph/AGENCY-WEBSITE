@@ -13,6 +13,8 @@ import Delivery from './pages/public/Delivery'
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard'
 import Login from './pages/admin/Login'
+import SeedAdmin from './pages/admin/SeedAdmin'
+import ChangePassword from './pages/admin/ChangePassword'
 import Clients from './pages/admin/Clients'
 import Projects from './pages/admin/Projects'
 import Payments from './pages/admin/Payments'
@@ -38,6 +40,7 @@ createRoot(document.getElementById('root')).render(
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
+          <Route path="/admin/seed" element={<SeedAdmin />} />
           <Route element={
             <ProtectedRoute>
               <AdminLayout />
@@ -49,6 +52,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin/projects/:id/plan" element={<ProjectPlan />} />
             <Route path="/admin/payments" element={<Payments />} />
             <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin/change-password" element={<ChangePassword />} />
           </Route>
         </Routes>
       </BrowserRouter>

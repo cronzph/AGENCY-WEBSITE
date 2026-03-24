@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../firebase/config';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { useToast } from '../shared/Toast';
@@ -37,6 +38,12 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const LockIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+  </svg>
+);
+
 const BellIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -67,10 +74,12 @@ const navItems = [
   { path: '/admin/projects', label: 'Projects', icon: ProjectsIcon },
   { path: '/admin/payments', label: 'Payments', icon: PaymentsIcon },
   { path: '/admin/settings', label: 'Settings', icon: SettingsIcon },
+  { path: '/admin/change-password', label: 'Change Password', icon: LockIcon },
 ];
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [adminInitial, setAdminInitial] = useState('A');
@@ -82,7 +91,18 @@ const AdminLayout = () => {
   // Get current page title
   const currentPage = navItems.find(item => item.path === location.pathname) || navItems[0];
 
+  // Wait for auth before subscribing to Firestore
   useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+
     // Set admin initial from email or use default
     const user = auth.currentUser;
     if (user?.email) {
@@ -104,7 +124,7 @@ const AdminLayout = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
   // Close notifications when clicking outside
   useEffect(() => {

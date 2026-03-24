@@ -1,17 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 
 const Clients = () => {
+  const [authReady, setAuthReady] = useState(false);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientProjects, setClientProjects] = useState([]);
   const [clientPayments, setClientPayments] = useState([]);
 
+  // Wait for auth before subscribing to Firestore
   useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    
     const projectsQuery = query(
       collection(db, 'projects'),
       orderBy('createdAt', 'desc')
@@ -87,7 +100,7 @@ const Clients = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
   const openClientProfile = async (client) => {
     setSelectedClient(client);

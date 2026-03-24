@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useToast } from '../../components/shared/Toast';
 import StatusBadge from '../../components/shared/StatusBadge';
 
 const Dashboard = () => {
   const toast = useToast();
+  const [authReady, setAuthReady] = useState(false);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     activeProjects: 0,
@@ -38,27 +40,38 @@ const Dashboard = () => {
     cancelled: '#ef4444',
   };
 
+  // 1) Auth watcher — must be first
   useEffect(() => {
-    const projectsQuery = query(
-      collection(db, 'projects'),
-      orderBy('createdAt', 'desc')
-    );
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2) Projects listener — only depends on authReady
+  useEffect(() => {
+    if (!authReady) return;
+
+    const projectsQuery = query(collection(db, 'projects'));
 
     const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
       setProjects(projectsData);
 
-      // Calculate stats
       const uniqueEmails = new Set(projectsData.map(p => p.email));
-      const activeProjects = projectsData.filter(p => 
+      const activeProjects = projectsData.filter(p =>
         p.status === 'in_progress' || p.status === 'planning' || p.status === 'building' || p.status === 'for_review'
       ).length;
       const pendingProposals = projectsData.filter(p => p.status === 'assessed').length;
 
-      // Find SaaS subscribers
       const saas = projectsData.filter(p => p.aiAssessment?.monthlySassPrice > 0);
       const uniqueSaas = [];
       const seenEmails = new Set();
@@ -70,45 +83,44 @@ const Dashboard = () => {
       });
       setSaasSubscribers(uniqueSaas);
 
-      // Status counts
       const counts = {};
       projectsData.forEach(p => {
         const status = p.status || 'inquiry';
         counts[status] = (counts[status] || 0) + 1;
       });
-      const statusData = Object.entries(counts).map(([name, value]) => ({ name, value }));
-      setStatusCounts(statusData);
+      setStatusCounts(Object.entries(counts).map(([name, value]) => ({ name, value })));
 
-      // Update stats
-      setStats({
+      setStats(prev => ({
+        ...prev,
         totalClients: uniqueEmails.size,
         activeProjects,
         pendingActions: pendingProposals,
-        totalRevenue: 0,
-      });
+      }));
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
+  // 3) Payments listener — only depends on authReady
   useEffect(() => {
-    const paymentsQuery = query(
-      collection(db, 'payments'),
-      orderBy('createdAt', 'desc')
-    );
+    if (!authReady) return;
+
+    const paymentsQuery = query(collection(db, 'payments'));
 
     const unsubscribe = onSnapshot(paymentsQuery, (snapshot) => {
       const paymentsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
       setPayments(paymentsData);
 
-      // Calculate total revenue
       const confirmed = paymentsData.filter(p => p.status === 'confirmed');
       const totalRevenue = confirmed.reduce((sum, p) => sum + (p.amount || 0), 0);
 
-      // Calculate monthly revenue (last 6 months)
       const monthlyData = {};
       const now = new Date();
       for (let i = 5; i >= 0; i--) {
@@ -116,7 +128,6 @@ const Dashboard = () => {
         const monthKey = month.toLocaleDateString('en-PH', { month: 'short', year: '2-digit' });
         monthlyData[monthKey] = 0;
       }
-
       confirmed.forEach(p => {
         if (p.createdAt) {
           const date = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
@@ -126,92 +137,67 @@ const Dashboard = () => {
           }
         }
       });
+      setMonthlyRevenue(Object.entries(monthlyData).map(([month, amount]) => ({ month, amount })));
 
-      const revenueData = Object.entries(monthlyData).map(([month, amount]) => ({
-        month,
-        amount,
-      }));
-      setMonthlyRevenue(revenueData);
-
-      // Calculate pending actions
       const pendingPayments = paymentsData.filter(p => p.status === 'pending').length;
-
       setStats(prev => ({
         ...prev,
         totalRevenue,
         pendingActions: prev.pendingActions + pendingPayments,
       }));
 
-      // Generate recent activity
-      const activities = [];
-      
-      // Add payment activities
-      paymentsData.slice(0, 20).forEach(p => {
-        if (p.status === 'confirmed') {
-          activities.push({
-            type: 'payment',
-            icon: '💰',
-            description: `${p.clientName} submitted payment for ${p.projectType}`,
-            date: p.createdAt,
-          });
-        } else if (p.status === 'pending') {
-          activities.push({
-            type: 'payment_pending',
-            icon: '⏳',
-            description: `${p.clientName} payment pending confirmation`,
-            date: p.createdAt,
-          });
-        }
-      });
-
-      // Add project activities
-      projects.slice(0, 20).forEach(p => {
-        if (p.status === 'proposal_sent') {
-          activities.push({
-            type: 'proposal',
-            icon: '📄',
-            description: `Proposal sent to ${p.clientName}`,
-            date: p.proposalSentAt,
-          });
-        } else if (p.status === 'proposal_accepted') {
-          activities.push({
-            type: 'accepted',
-            icon: '✅',
-            description: `${p.clientName} accepted proposal`,
-            date: p.proposalAcceptedAt,
-          });
-        } else if (p.status === 'building') {
-          activities.push({
-            type: 'building',
-            icon: '🔨',
-            description: `Started building ${p.businessName}`,
-            date: p.buildingStartedAt,
-          });
-        } else if (p.status === 'delivered') {
-          activities.push({
-            type: 'delivered',
-            icon: '🚀',
-            description: `Delivered ${p.businessName}`,
-            date: p.deliveredAt,
-          });
-        }
-      });
-
-      // Sort by date and take top 10
-      activities.sort((a, b) => {
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        const dateA = a.date.toDate ? a.date.toDate() : new Date(a.date);
-        const dateB = b.date.toDate ? b.date.toDate() : new Date(b.date);
-        return dateB - dateA;
-      });
-
-      setRecentActivity(activities.slice(0, 10));
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [projects]);
+  }, [authReady]);
+
+  // 4) Recent activity — computed from state, no Firestore, runs when either data changes
+  useEffect(() => {
+    if (projects.length === 0 && payments.length === 0) return;
+
+    const activities = [];
+
+    payments.slice(0, 20).forEach(p => {
+      if (p.status === 'confirmed') {
+        activities.push({
+          type: 'payment',
+          icon: '💰',
+          description: `${p.clientName} submitted payment for ${p.projectType}`,
+          date: p.createdAt,
+        });
+      } else if (p.status === 'pending') {
+        activities.push({
+          type: 'payment_pending',
+          icon: '⏳',
+          description: `${p.clientName} payment pending confirmation`,
+          date: p.createdAt,
+        });
+      }
+    });
+
+    projects.slice(0, 20).forEach(p => {
+      if (p.status === 'proposal_sent') {
+        activities.push({ type: 'proposal', icon: '📄', description: `Proposal sent to ${p.clientName}`, date: p.proposalSentAt });
+      } else if (p.status === 'proposal_accepted') {
+        activities.push({ type: 'accepted', icon: '✅', description: `${p.clientName} accepted proposal`, date: p.proposalAcceptedAt });
+      } else if (p.status === 'building') {
+        activities.push({ type: 'building', icon: '🔨', description: `Started building ${p.businessName}`, date: p.buildingStartedAt });
+      } else if (p.status === 'delivered') {
+        activities.push({ type: 'delivered', icon: '🚀', description: `Delivered ${p.businessName}`, date: p.deliveredAt });
+      }
+    });
+
+    activities.sort((a, b) => {
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      const dateA = a.date.toDate ? a.date.toDate() : new Date(a.date);
+      const dateB = b.date.toDate ? b.date.toDate() : new Date(b.date);
+      return dateB - dateA;
+    });
+
+    setRecentActivity(activities.slice(0, 10));
+  }, [projects, payments]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
@@ -229,7 +215,6 @@ const Dashboard = () => {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days === 1) return 'yesterday';
@@ -301,49 +286,30 @@ const Dashboard = () => {
 
       {/* ROW 2 - Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Projects by Status */}
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
           <h3 className="text-lg font-semibold text-white mb-4">Projects by Status</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <PieChart>
-                <Pie
-                  data={statusCounts}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
+                <Pie data={statusCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
                   {statusCounts.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={statusColors[entry.name] || '#6b7280'} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f9fafb' }}
-                  itemStyle={{ color: '#9ca3af' }}
-                />
+                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }} labelStyle={{ color: '#f9fafb' }} itemStyle={{ color: '#9ca3af' }} />
                 <Legend wrapperStyle={{ color: '#9ca3af' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Monthly Revenue */}
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
           <h3 className="text-lg font-semibold text-white mb-4">Monthly Revenue</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <BarChart data={monthlyRevenue}>
                 <XAxis dataKey="month" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" tickFormatter={(value) => `₱${value / 1000}k`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f9fafb' }}
-                  formatter={(value) => [formatCurrency(value), 'Revenue']}
-                />
+                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }} labelStyle={{ color: '#f9fafb' }} formatter={(value) => [formatCurrency(value), 'Revenue']} />
                 <Bar dataKey="amount" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -353,7 +319,6 @@ const Dashboard = () => {
 
       {/* ROW 3 - Two columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity Feed */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
           <div className="p-4 border-b border-gray-800">
             <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
@@ -382,7 +347,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* SaaS Subscribers */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
           <div className="p-4 border-b border-gray-800">
             <div className="flex justify-between items-center">
