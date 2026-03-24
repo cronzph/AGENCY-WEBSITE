@@ -1,0 +1,613 @@
+import { useState, useEffect } from 'react';
+import {
+    collection,
+    addDoc,
+    getDocs,
+    updateDoc,
+    doc,
+    serverTimestamp,
+    query,
+    orderBy
+} from 'firebase/firestore';
+import { db } from '../../firebase/config';
+
+const DevDashboard = () => {
+    const [projects, setProjects] = useState([]);
+    const [allBugs, setAllBugs] = useState([]);
+    const [errorLogs, setErrorLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [apiStatuses, setApiStatuses] = useState({
+        groq: { status: 'unknown', responseTime: null, lastChecked: null },
+        openrouter: { status: 'unknown', responseTime: null, lastChecked: null },
+        cerebras: { status: 'unknown', responseTime: null, lastChecked: null },
+    });
+    const [checkingApis, setCheckingApis] = useState(false);
+    const [sortBy, setSortBy] = useState('healthScore');
+    const [showLogModal, setShowLogModal] = useState(false);
+    const [newLog, setNewLog] = useState({ message: '', source: 'Runtime', severity: 'info' });
+
+    // Fetch all data on mount
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch projects
+                const projectsSnap = await getDocs(collection(db, 'projects'));
+                const projectsData = projectsSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setProjects(projectsData);
+
+                // Fetch all bugs from subcollections
+                const bugs = [];
+                for (const projectDoc of projectsSnap.docs) {
+                    const projectData = projectDoc.data();
+                    const bugsQuery = query(
+                        collection(db, 'projects', projectDoc.id, 'bugReports'),
+                        orderBy('createdAt', 'desc')
+                    );
+                    const bugsSnap = await getDocs(bugsQuery);
+                    bugsSnap.docs.forEach(bugDoc => {
+                        bugs.push({
+                            id: bugDoc.id,
+                            projectId: projectDoc.id,
+                            ...bugDoc.data(),
+                            projectName: projectData.businessName || 'Unknown',
+                            clientName: projectData.clientName || projectData.name || 'Unknown'
+                        });
+                    });
+                }
+                setAllBugs(bugs);
+
+                // Fetch error logs
+                const logsQuery = query(
+                    collection(db, 'errorLogs'),
+                    orderBy('createdAt', 'desc')
+                );
+                const logsSnap = await getDocs(logsQuery);
+                const logsData = logsSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setErrorLogs(logsData);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    // Calculate project health scores
+    const getProjectHealth = (projectId) => {
+        const projectBugs = allBugs.filter(b => b.projectId === projectId);
+        const severityCounts = { critical: 0, major: 0, medium: 0, minor: 0 };
+
+        projectBugs.forEach(bug => {
+            const severity = bug.aiAnalysis?.severity?.toLowerCase();
+            if (severity === 'critical') severityCounts.critical++;
+            else if (severity === 'major') severityCounts.major++;
+            else if (severity === 'medium') severityCounts.medium++;
+            else if (severity === 'minor') severityCounts.minor++;
+        });
+
+        // Health score formula: 100 - critical×30 - major×15 - medium×5 - minor×1
+        const score = Math.max(0, Math.min(100, 100 -
+            severityCounts.critical * 30 -
+            severityCounts.major * 15 -
+            severityCounts.medium * 5 -
+            severityCounts.minor * 1
+        ));
+
+        return {
+            score,
+            critical: severityCounts.critical,
+            major: severityCounts.major,
+            medium: severityCounts.medium,
+            minor: severityCounts.minor,
+            total: projectBugs.length
+        };
+    };
+
+    // Get projects with health data
+    const projectsWithHealth = projects.map(project => {
+        const health = getProjectHealth(project.id);
+        return {
+            ...project,
+            ...health
+        };
+    }).sort((a, b) => {
+        if (sortBy === 'healthScore') return a.score - b.score;
+        if (sortBy === 'bugs') return b.total - a.total;
+        if (sortBy === 'critical') return b.critical - a.critical;
+        return 0;
+    });
+
+    // System health stats
+    const getSystemStats = () => {
+        const openBugs = allBugs.filter(b => b.status !== 'resolved' && b.status !== 'closed');
+        const criticalBugs = allBugs.filter(b =>
+            b.aiAnalysis?.severity?.toLowerCase() === 'critical' &&
+            b.status !== 'resolved' && b.status !== 'closed'
+        );
+
+        return {
+            totalProjects: projects.length,
+            openBugs: openBugs.length,
+            criticalBugs: criticalBugs.length
+        };
+    };
+
+    const systemStats = getSystemStats();
+
+    // API Health Check
+    const checkApiHealth = async (apiName, endpoint, apiKey) => {
+        const startTime = Date.now();
+
+        try {
+            // Try a simple request to check if API is available
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    max_tokens: 10,
+                    messages: [{ role: 'user', content: 'hi' }]
+                })
+            });
+
+            const responseTime = Date.now() - startTime;
+
+            // Any response (even 4xx/5xx) means API is online
+            return {
+                status: response.ok ? 'online' : 'error',
+                responseTime,
+                lastChecked: new Date()
+            };
+        } catch (error) {
+            return {
+                status: 'offline',
+                responseTime: Date.now() - startTime,
+                lastChecked: new Date()
+            };
+        }
+    };
+
+    const checkAllApis = async () => {
+        setCheckingApis(true);
+
+        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+        const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+        const cerebrasKey = import.meta.env.VITE_CEREBRAS_API_KEY;
+
+        const results = await Promise.all([
+            checkApiHealth('groq', 'https://api.groq.com/openai/v1/chat/completions', groqKey),
+            checkApiHealth('openrouter', 'https://openrouter.ai/api/v1/chat/completions', openrouterKey),
+            checkApiHealth('cerebras', 'https://api.cerebras.ai/v1/chat/completions', cerebrasKey)
+        ]);
+
+        setApiStatuses({
+            groq: results[0],
+            openrouter: results[1],
+            cerebras: results[2]
+        });
+
+        setCheckingApis(false);
+    };
+
+    // Mark error as resolved
+    const markErrorResolved = async (logId) => {
+        try {
+            const logDoc = doc(db, 'errorLogs', logId);
+            await updateDoc(logDoc, {
+                resolved: true,
+                resolvedAt: serverTimestamp()
+            });
+
+            setErrorLogs(prev => prev.map(log =>
+                log.id === logId ? { ...log, resolved: true, resolvedAt: new Date() } : log
+            ));
+        } catch (error) {
+            console.error('Error resolving log:', error);
+        }
+    };
+
+    // Add new error log
+    const addErrorLog = async () => {
+        if (!newLog.message.trim()) return;
+
+        try {
+            const docRef = await addDoc(collection(db, 'errorLogs'), {
+                message: newLog.message,
+                source: newLog.source,
+                severity: newLog.severity,
+                projectId: null,
+                resolved: false,
+                createdAt: serverTimestamp()
+            });
+
+            setErrorLogs(prev => [{
+                id: docRef.id,
+                ...newLog,
+                projectId: null,
+                resolved: false,
+                createdAt: new Date()
+            }, ...prev]);
+
+            setNewLog({ message: '', source: 'Runtime', severity: 'info' });
+            setShowLogModal(false);
+        } catch (error) {
+            console.error('Error adding log:', error);
+        }
+    };
+
+    // Get health color
+    const getHealthColor = (score) => {
+        if (score >= 80) return 'text-green-400';
+        if (score >= 50) return 'text-yellow-400';
+        return 'text-red-400';
+    };
+
+    const getHealthBg = (score) => {
+        if (score >= 80) return 'bg-green-900/20 border-green-700';
+        if (score >= 50) return 'bg-yellow-900/20 border-yellow-700';
+        return 'bg-red-900/20 border-red-700';
+    };
+
+    // Get API status color
+    const getApiStatusColor = (status) => {
+        if (status === 'online') return 'text-green-400';
+        if (status === 'error') return 'text-yellow-400';
+        return 'text-gray-400';
+    };
+
+    // Format time ago
+    const timeAgo = (date) => {
+        if (!date) return 'N/A';
+        const now = new Date();
+        const then = date.toDate ? date.toDate() : new Date(date);
+        const diff = Math.floor((now - then) / 1000);
+
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        return `${Math.floor(diff / 86400)}d ago`;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6">
+            <div className="mb-8 flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Developer Dashboard</h1>
+                    <p className="text-gray-400 mt-1">System health and API monitoring</p>
+                </div>
+                <button
+                    onClick={() => setShowLogModal(true)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Log Error
+                </button>
+            </div>
+
+            {/* System Health Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                    <p className="text-gray-400 text-sm mb-1">Total Projects</p>
+                    <p className="text-2xl font-bold text-white">{systemStats.totalProjects}</p>
+                </div>
+
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                    <p className="text-gray-400 text-sm mb-1">Open Bugs</p>
+                    <p className="text-2xl font-bold text-yellow-400">{systemStats.openBugs}</p>
+                </div>
+
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                    <p className="text-gray-400 text-sm mb-1">Critical Bugs</p>
+                    <p className="text-2xl font-bold text-red-400">{systemStats.criticalBugs}</p>
+                </div>
+
+                <div className={`bg-gray-800 border rounded-xl p-5 ${Object.values(apiStatuses).every(s => s.status === 'online') ? 'border-green-700' :
+                        Object.values(apiStatuses).some(s => s.status === 'offline') ? 'border-red-700' :
+                            'border-gray-700'
+                    }`}>
+                    <p className="text-gray-400 text-sm mb-1">API Health</p>
+                    <p className={`text-2xl font-bold ${Object.values(apiStatuses).every(s => s.status === 'online') ? 'text-green-400' :
+                            Object.values(apiStatuses).some(s => s.status === 'offline') ? 'text-red-400' :
+                                'text-yellow-400'
+                        }`}>
+                        {Object.values(apiStatuses).filter(s => s.status === 'online').length}/3 Online
+                    </p>
+                </div>
+            </div>
+
+            {/* API Status Monitor */}
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-white">API Status</h2>
+                    <button
+                        onClick={checkAllApis}
+                        disabled={checkingApis}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                        {checkingApis ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Checking...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Check All
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(apiStatuses).map(([api, data]) => (
+                        <div key={api} className="bg-gray-700/30 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-white font-medium capitalize">{api}</span>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${getApiStatusColor(data.status)} bg-gray-800`}>
+                                    {data.status}
+                                </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                                <p>Response: {data.responseTime ? `${data.responseTime}ms` : 'N/A'}</p>
+                                <p>Last checked: {data.lastChecked ? timeAgo(data.lastChecked) : 'Never'}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Per-Project Health Table */}
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-white">Project Health</h2>
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                    >
+                        <option value="healthScore">Sort by Health Score</option>
+                        <option value="bugs">Sort by Bug Count</option>
+                        <option value="critical">Sort by Critical Bugs</option>
+                    </select>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-700/50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Project</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Client</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Bugs</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Critical</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Health</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700">
+                            {projectsWithHealth.map(project => (
+                                <tr key={project.id} className="hover:bg-gray-700/30">
+                                    <td className="px-4 py-3 text-white font-medium">
+                                        {project.businessName || 'Unknown'}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-300">
+                                        {project.clientName || project.name || 'Unknown'}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className={`px-2 py-1 rounded text-xs ${project.status === 'delivered' ? 'bg-green-600/20 text-green-400' :
+                                                project.status === 'in_progress' ? 'bg-blue-600/20 text-blue-400' :
+                                                    'bg-gray-600/20 text-gray-400'
+                                            }`}>
+                                            {project.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-300">{project.total}</td>
+                                    <td className="px-4 py-3">
+                                        <span className={`font-medium ${project.critical > 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                                            {project.critical}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className={`font-bold ${getHealthColor(project.score)}`}>
+                                            {project.score}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Error Log Feed */}
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
+                <h2 className="text-lg font-semibold text-white mb-4">Error Logs</h2>
+
+                {errorLogs.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No error logs</p>
+                ) : (
+                    <div className="space-y-3">
+                        {errorLogs.slice(0, 20).map(log => (
+                            <div
+                                key={log.id}
+                                className={`p-4 rounded-lg border ${log.resolved ? 'border-gray-700 bg-gray-700/20' :
+                                        log.severity === 'critical' ? 'border-red-700 bg-red-900/20' :
+                                            log.severity === 'error' ? 'border-red-600 bg-red-900/10' :
+                                                log.severity === 'warning' ? 'border-yellow-700 bg-yellow-900/20' :
+                                                    'border-gray-700 bg-gray-700/30'
+                                    }`}
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`px-2 py-0.5 rounded text-xs ${log.severity === 'critical' ? 'bg-red-600 text-white' :
+                                                    log.severity === 'error' ? 'bg-red-500 text-white' :
+                                                        log.severity === 'warning' ? 'bg-yellow-500 text-white' :
+                                                            'bg-blue-500 text-white'
+                                                }`}>
+                                                {log.severity}
+                                            </span>
+                                            <span className="text-gray-500 text-xs">{log.source}</span>
+                                            <span className="text-gray-500 text-xs">•</span>
+                                            <span className="text-gray-500 text-xs">{timeAgo(log.createdAt)}</span>
+                                        </div>
+                                        <p className={`text-white ${log.resolved ? 'line-through text-gray-500' : ''}`}>
+                                            {log.message}
+                                        </p>
+                                    </div>
+                                    {!log.resolved && (
+                                        <button
+                                            onClick={() => markErrorResolved(log.id)}
+                                            className="ml-4 px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-xs"
+                                        >
+                                            Resolve
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Recent Bug Activity */}
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                <h2 className="text-lg font-semibold text-white mb-4">Recent Bug Activity</h2>
+
+                {allBugs.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No bug reports</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-700/50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Title</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Project</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Severity</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700">
+                                {allBugs.slice(0, 10).map(bug => (
+                                    <tr key={bug.id} className="hover:bg-gray-700/30">
+                                        <td className="px-4 py-3 text-white truncate max-w-xs">{bug.title}</td>
+                                        <td className="px-4 py-3 text-gray-300">{bug.projectName}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 rounded text-xs ${bug.aiAnalysis?.severity === 'Critical' ? 'bg-red-600 text-white' :
+                                                    bug.aiAnalysis?.severity === 'Major' ? 'bg-orange-500 text-white' :
+                                                        bug.aiAnalysis?.severity === 'Medium' ? 'bg-yellow-500 text-white' :
+                                                            'bg-gray-500 text-white'
+                                                }`}>
+                                                {bug.aiAnalysis?.severity || 'Unknown'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 rounded text-xs ${bug.status === 'resolved' || bug.status === 'closed' ? 'bg-green-600/20 text-green-400' :
+                                                    bug.status === 'open' ? 'bg-red-600/20 text-red-400' :
+                                                        'bg-blue-600/20 text-blue-400'
+                                                }`}>
+                                                {bug.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-400 text-sm">{timeAgo(bug.createdAt)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Log Error Modal */}
+            {showLogModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-white mb-4">Log Error</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-1">Message</label>
+                                <textarea
+                                    value={newLog.message}
+                                    onChange={(e) => setNewLog(prev => ({ ...prev, message: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                    rows={3}
+                                    placeholder="Error message..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-1">Source</label>
+                                <select
+                                    value={newLog.source}
+                                    onChange={(e) => setNewLog(prev => ({ ...prev, source: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="Runtime">Runtime</option>
+                                    <option value="API">API</option>
+                                    <option value="Build">Build</option>
+                                    <option value="Deploy">Deploy</option>
+                                    <option value="Database">Database</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-1">Severity</label>
+                                <select
+                                    value={newLog.severity}
+                                    onChange={(e) => setNewLog(prev => ({ ...prev, severity: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="info">Info</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="error">Error</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setShowLogModal(false)}
+                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={addErrorLog}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg"
+                            >
+                                Log Error
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default DevDashboard;

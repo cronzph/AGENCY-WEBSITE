@@ -788,6 +788,21 @@ const Projects = () => {
                             View Discovery
                           </Link>
                         )}
+                        <Link
+                          to={`/admin/projects/${project.id}/bugs`}
+                          className="px-3 py-1 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded"
+                        >
+                          Bugs
+                        </Link>
+                        <button
+                          onClick={() => {
+                            const link = `${window.location.origin}/feature-request/${project.id}`;
+                            navigator.clipboard.writeText(link);
+                          }}
+                          className="px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded"
+                        >
+                          Feature Req Link
+                        </button>
                       </div>
                     </td>
                   </tr>

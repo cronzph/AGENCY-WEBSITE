@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { db } from '../../firebase/config';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const Landing = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedRevenue, setSelectedRevenue] = useState(null);
   const [recommendedTier, setRecommendedTier] = useState(null);
+  const [portfolioItems, setPortfolioItems] = useState([]);
+  const [testimonials, setTestimonials] = useState([]);
+  const [portfolioFilter, setPortfolioFilter] = useState('All');
 
   const tierData = {
     'below-50k': {
@@ -70,6 +75,26 @@ const Landing = () => {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Fetch portfolio items and testimonials from Firestore
+  useEffect(() => {
+    const fetchPortfolioAndTestimonials = async () => {
+      try {
+        // Fetch featured portfolio items
+        const portfolioQuery = query(collection(db, 'portfolio'), where('featured', '==', true));
+        const portfolioSnap = await getDocs(portfolioQuery);
+        setPortfolioItems(portfolioSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch approved testimonials
+        const ratingsQuery = query(collection(db, 'ratings'), where('showOnLanding', '==', true));
+        const ratingsSnap = await getDocs(ratingsQuery);
+        setTestimonials(ratingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (err) {
+        console.error('Error fetching portfolio/testimonials:', err);
+      }
+    };
+    fetchPortfolioAndTestimonials();
   }, []);
 
   const scrollToSection = (id) => {
@@ -170,6 +195,7 @@ const Landing = () => {
               <button onClick={() => scrollToSection('students')} className="text-gray-300 hover:text-white transition-colors">Students</button>
               <button onClick={() => scrollToSection('quick-fix')} className="text-gray-300 hover:text-white transition-colors">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="text-gray-300 hover:text-white transition-colors">Why Us</button>
+              <button onClick={() => scrollToSection('portfolio')} className="text-gray-300 hover:text-white transition-colors">Portfolio</button>
               <Link to="/inquiry" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
                 Get Started
               </Link>
@@ -197,6 +223,7 @@ const Landing = () => {
               <button onClick={() => scrollToSection('students')} className="block w-full text-left text-gray-300 hover:text-white py-2">Students</button>
               <button onClick={() => scrollToSection('quick-fix')} className="block w-full text-left text-gray-300 hover:text-white py-2">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="block w-full text-left text-gray-300 hover:text-white py-2">Why Us</button>
+              <button onClick={() => scrollToSection('portfolio')} className="block w-full text-left text-gray-300 hover:text-white py-2">Portfolio</button>
               <Link to="/inquiry" className="block w-full text-center px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">
                 Get Started
               </Link>
@@ -339,6 +366,131 @@ const Landing = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Portfolio Section */}
+      <section id="portfolio" className="py-20 bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Our Portfolio</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Showcasing our featured projects and client work
+          </p>
+
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            <button
+              onClick={() => setPortfolioFilter('all')}
+              className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+            >
+              All
+            </button>
+            {['Website', 'POS', 'Inventory', 'Mobile App', 'Custom'].map(type => (
+              <button
+                key={type}
+                onClick={() => setPortfolioFilter(type)}
+                className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === type
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Portfolio Grid */}
+          {portfolioItems.length === 0 ? (
+            <p className="text-center text-gray-400">No portfolio items to display</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {portfolioItems
+                .filter(item => portfolioFilter === 'all' || item.projectType === portfolioFilter)
+                .map(item => (
+                  <div key={item.id} className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden hover:border-blue-500/30 transition-colors group">
+                    {item.thumbnail && (
+                      <div className="aspect-video bg-gray-700 overflow-hidden">
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium px-2 py-1 bg-blue-600/20 text-blue-400 rounded">
+                          {item.projectType}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2 text-white">{item.title}</h3>
+                      <p className="text-gray-300 text-sm mb-3">{item.description}</p>
+                      {item.techStack && (
+                        <p className="text-xs text-gray-400 mb-3">Tech: {item.techStack}</p>
+                      )}
+                      {item.clientName && (
+                        <p className="text-xs text-gray-500 mb-3">Client: {item.clientName}</p>
+                      )}
+                      {item.liveUrl && (
+                        <a
+                          href={item.liveUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium"
+                        >
+                          View Project
+                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-20 bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">What Our Clients Say</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            Client ratings and feedback from completed projects
+          </p>
+
+          {testimonials.length === 0 ? (
+            <p className="text-center text-gray-400">No testimonials to display</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {testimonials.map(testimonial => (
+                <div key={testimonial.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/30 transition-colors">
+                  <div className="flex items-center mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <svg
+                        key={i}
+                        className={`w-5 h-5 ${i < testimonial.rating ? 'text-yellow-400' : 'text-gray-600'}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  {testimonial.feedback && (
+                    <p className="text-gray-300 mb-4 italic">"{testimonial.feedback}"</p>
+                  )}
+                  {testimonial.clientName && (
+                    <p className="text-white font-medium">— {testimonial.clientName}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -579,8 +731,8 @@ const Landing = () => {
                       key={option.value}
                       onClick={() => handleRevenueSelect(option.value)}
                       className={`cursor-pointer p-4 rounded-lg transition-all text-left ${selectedRevenue === option.value
-                          ? 'bg-blue-600/20 border-2 border-blue-500'
-                          : 'bg-gray-900 border border-gray-700 hover:border-blue-500'
+                        ? 'bg-blue-600/20 border-2 border-blue-500'
+                        : 'bg-gray-900 border border-gray-700 hover:border-blue-500'
                         }`}
                     >
                       <div className="flex items-center gap-3">
