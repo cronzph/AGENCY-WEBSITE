@@ -7,6 +7,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
 
 const Projects = () => {
+  const { showToast } = useToast();
 
   const [projects, setProjects] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -37,7 +38,6 @@ const Projects = () => {
   const [newWarning, setNewWarning] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const searchParams = new URLSearchParams(location.search);
   const emailFilter = searchParams.get('email');
 
@@ -160,8 +160,7 @@ const Projects = () => {
       showToast('Proposal link copied! Send this to your client via FB Messenger', 'success');
     } catch (err) {
       console.error('Error sending proposal:', err);
-      setToast('Failed to copy link. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to copy link. Please try again.', 'error');
     } finally {
       setIsSending(null);
     }
@@ -174,8 +173,7 @@ const Projects = () => {
       showToast('Proposal link copied to clipboard!', 'success');
     } catch (err) {
       console.error('Error copying link:', err);
-      setToast('Failed to copy link. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to copy link. Please try again.', 'error');
     }
   };
 
@@ -226,12 +224,10 @@ const Projects = () => {
         paymentLinkSentAt: new Date(),
       });
 
-      setToast('Payment link copied! Send this to your client via FB Messenger');
-      setTimeout(() => setToast(''), 5000);
+      showToast('Payment link copied! Send this to your client via FB Messenger', 'success');
     } catch (err) {
       console.error('Error sending payment link:', err);
-      setToast('Failed to copy link. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to copy link. Please try again.', 'error');
     } finally {
       setIsSending(null);
     }
@@ -253,12 +249,10 @@ const Projects = () => {
         ...statusTimestamps,
         ...additionalData,
       });
-      setToast(`Project marked as ${newStatus.replace('_', ' ')}`);
-      setTimeout(() => setToast(''), 3000);
+      showToast(`Project marked as ${newStatus.replace('_', ' ')}`, 'success');
     } catch (err) {
       console.error('Error updating status:', err);
-      setToast('Failed to update status. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to update status. Please try again.', 'error');
     }
   };
 
@@ -266,7 +260,7 @@ const Projects = () => {
     if (!selectedProject) return;
 
     setIsGeneratingPlan(true);
-    setToast('Generating plan...');
+    showToast('Generating plan...', 'info');
 
     try {
       const project = selectedProject;
@@ -333,8 +327,7 @@ const Projects = () => {
         planGeneratedAt: new Date(),
       });
 
-      setToast('Project plan generated!');
-      setTimeout(() => setToast(''), 5000);
+      showToast('Project plan generated!', 'success');
 
       // Refresh selected project
       const updatedSnap = await getDoc(projectRef);
@@ -342,8 +335,7 @@ const Projects = () => {
 
     } catch (err) {
       console.error('Error generating plan:', err);
-      setToast('Failed to generate plan. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to generate plan. Please try again.', 'error');
     } finally {
       setIsGeneratingPlan(false);
     }
@@ -401,8 +393,7 @@ const Projects = () => {
         aiAssessedAt: new Date(),
       });
 
-      setToast('Proposal updated!');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Proposal updated!', 'success');
       setIsEditMode(false);
 
       // Refresh selected project
@@ -410,8 +401,7 @@ const Projects = () => {
       setSelectedProject({ id: updatedSnap.id, ...updatedSnap.data() });
     } catch (err) {
       console.error('Error saving proposal:', err);
-      setToast('Failed to save. Please try again.');
-      setTimeout(() => setToast(''), 3000);
+      showToast('Failed to save. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -715,99 +705,148 @@ const Projects = () => {
       {/* Projects Table / Cards */}
       {viewMode === 'table' ? (
         <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
-                <th className="px-6 py-3">Client</th>
-                <th className="px-6 py-3">Business</th>
-                <th className="px-6 py-3">Type</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Budget</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedProjects.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                    No projects found
-                  </td>
+          {/* Mobile Cards */}
+          <div className="flex flex-col gap-3 lg:hidden">
+            {paginatedProjects.length === 0 ? (
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center text-gray-400">No projects found</div>
+            ) : (
+              paginatedProjects.map((project) => (
+                <div key={project.id} className="bg-gray-800 rounded-lg border border-gray-700 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold truncate">{project.clientName || '-'}</p>
+                      <p className="text-gray-400 text-sm truncate">{project.businessName || '-'}</p>
+                      <p className="text-gray-500 text-xs">{getServicesDisplay(project.servicesNeeded)}</p>
+                    </div>
+                    <span className={`shrink-0 inline-block px-2 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
+                      {project.status || 'inquiry'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-green-400 font-semibold">
+                      {project.aiAssessment?.suggestedPrice ? formatCurrency(project.aiAssessment.suggestedPrice) : project.budgetRange || '-'}
+                    </span>
+                    <span className="text-gray-500 text-xs">{formatDate(project.createdAt)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setSelectedProject(project)} className="px-3 py-1.5 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded-lg">View</button>
+                    {project.status === 'assessed' && (
+                      <button onClick={() => handleSendProposal(project.id)} disabled={isSending === project.id} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50">
+                        {isSending === project.id ? '...' : 'Send Proposal'}
+                      </button>
+                    )}
+                    {(project.status === 'in_progress' || project.status === 'payment_confirmed') && !project.discovery?.completed && (
+                      <button onClick={() => handleSendDiscovery(project.id)} disabled={isSending === project.id} className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded-lg disabled:opacity-50">
+                        {isSending === project.id ? '...' : 'Discovery'}
+                      </button>
+                    )}
+                    {project.discovery?.completed && (
+                      <Link to={`/admin/projects/${project.id}/discovery`} className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg">Discovery</Link>
+                    )}
+                    <Link to={`/admin/projects/${project.id}/bugs`} className="px-3 py-1.5 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg">Bugs</Link>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden lg:block">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
+                  <th className="px-6 py-3">Client</th>
+                  <th className="px-6 py-3">Business</th>
+                  <th className="px-6 py-3">Type</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Budget</th>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Actions</th>
                 </tr>
-              ) : (
-                paginatedProjects.map((project) => (
-                  <tr key={project.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                    <td className="px-6 py-4 text-white">{project.clientName || '-'}</td>
-                    <td className="px-6 py-4 text-gray-300">{project.businessName || '-'}</td>
-                    <td className="px-6 py-4 text-gray-300">{getServicesDisplay(project.servicesNeeded)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
-                        {project.status || 'inquiry'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-300">
-                      {project.aiAssessment?.suggestedPrice
-                        ? formatCurrency(project.aiAssessment.suggestedPrice)
-                        : project.budgetRange || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-300">{formatDate(project.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setSelectedProject(project)}
-                          className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
-                        >
-                          View
-                        </button>
-                        {project.status === 'assessed' && (
-                          <button
-                            onClick={() => handleSendProposal(project.id)}
-                            disabled={isSending === project.id}
-                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
-                          >
-                            {isSending === project.id ? 'Sending...' : 'Send Proposal'}
-                          </button>
-                        )}
-                        {(project.status === 'in_progress' || project.status === 'payment_confirmed') && !project.discovery?.completed && (
-                          <button
-                            onClick={() => handleSendDiscovery(project.id)}
-                            disabled={isSending === project.id}
-                            className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50"
-                          >
-                            {isSending === project.id ? '...' : 'Send Discovery'}
-                          </button>
-                        )}
-                        {project.discovery?.completed && (
-                          <Link
-                            to={`/admin/projects/${project.id}/discovery`}
-                            className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
-                          >
-                            View Discovery
-                          </Link>
-                        )}
-                        <Link
-                          to={`/admin/projects/${project.id}/bugs`}
-                          className="px-3 py-1 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded"
-                        >
-                          Bugs
-                        </Link>
-                        <button
-                          onClick={() => {
-                            const link = `${window.location.origin}/feature-request/${project.id}`;
-                            navigator.clipboard.writeText(link);
-                          }}
-                          className="px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded"
-                        >
-                          Feature Req Link
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {paginatedProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      No projects found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  paginatedProjects.map((project) => (
+                    <tr key={project.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                      <td className="px-6 py-4 text-white">{project.clientName || '-'}</td>
+                      <td className="px-6 py-4 text-gray-300">{project.businessName || '-'}</td>
+                      <td className="px-6 py-4 text-gray-300">{getServicesDisplay(project.servicesNeeded)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
+                          {project.status || 'inquiry'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">
+                        {project.aiAssessment?.suggestedPrice
+                          ? formatCurrency(project.aiAssessment.suggestedPrice)
+                          : project.budgetRange || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">{formatDate(project.createdAt)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <button
+                            onClick={() => setSelectedProject(project)}
+                            className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded whitespace-nowrap"
+                          >
+                            View
+                          </button>
+                          {project.status === 'assessed' && (
+                            <button
+                              onClick={() => handleSendProposal(project.id)}
+                              disabled={isSending === project.id}
+                              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {isSending === project.id ? 'Sending...' : 'Send Proposal'}
+                            </button>
+                          )}
+                          {(project.status === 'in_progress' || project.status === 'payment_confirmed') && !project.discovery?.completed && (
+                            <button
+                              onClick={() => handleSendDiscovery(project.id)}
+                              disabled={isSending === project.id}
+                              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {isSending === project.id ? '...' : 'Send Discovery'}
+                            </button>
+                          )}
+                          {project.discovery?.completed && (
+                            <Link
+                              to={`/admin/projects/${project.id}/discovery`}
+                              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded whitespace-nowrap"
+                            >
+                              View Discovery
+                            </Link>
+                          )}
+                          <Link
+                            to={`/admin/projects/${project.id}/bugs`}
+                            className="px-3 py-1 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded whitespace-nowrap"
+                          >
+                            Bugs
+                          </Link>
+                          <button
+                            onClick={() => {
+                              const link = `${window.location.origin}/feature-request/${project.id}`;
+                              navigator.clipboard.writeText(link);
+                            }}
+                            className="px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded whitespace-nowrap"
+                          >
+                            Feature Req Link
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
       ) : (
         /* Cards View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1269,7 +1308,7 @@ const Projects = () => {
                               status: 'pending_request',
                               createdAt: serverTimestamp(),
                             });
-                            setToast('Final payment request created!');
+                            showToast('Final payment request created!', 'success');
                           } catch (err) {
                             console.error('Error creating final payment:', err);
                           }

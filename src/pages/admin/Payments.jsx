@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { createNotifications } from '../../utils/notifications';
 import { useToast } from '../../components/shared/Toast';
 
@@ -35,8 +35,7 @@ const Payments = () => {
     if (!authReady) return;
     
     const paymentsQuery = query(
-      collection(db, 'payments'),
-      orderBy('createdAt', 'desc')
+      collection(db, 'payments')
     );
 
     const unsubscribe = onSnapshot(paymentsQuery, (snapshot) => {
@@ -172,7 +171,7 @@ const Payments = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <h1 className="text-2xl font-bold text-white mb-6">Payment Management</h1>
 
           {/* Tabs */}
@@ -197,8 +196,53 @@ const Payments = () => {
             ))}
           </div>
 
-          {/* Payments Table */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
+          {/* Mobile Cards */}
+          <div className="flex flex-col gap-3 lg:hidden">
+            {filteredPayments.length === 0 ? (
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-8 text-center text-gray-400">
+                No {activeTab} payments found
+              </div>
+            ) : (
+              filteredPayments.map((payment) => (
+                <div key={payment.id} className="bg-gray-800 rounded-lg border border-gray-700 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-white font-semibold">{payment.clientName || '-'}</p>
+                      <p className="text-gray-400 text-sm">{payment.businessName || '-'}</p>
+                      <p className="text-gray-500 text-xs">{payment.projectType || '-'}</p>
+                    </div>
+                    <span className={`shrink-0 inline-block px-2 py-1 rounded-full text-xs text-white ${getStatusBadge(payment.status)}`}>
+                      {payment.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-green-400 font-bold text-lg">{formatCurrency(payment.amount)}</p>
+                      <p className="text-gray-500 text-xs capitalize">{payment.type || 'downpayment'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-400 text-xs">Ref: {payment.referenceNumber || '-'}</p>
+                      <p className="text-gray-500 text-xs">{formatDate(payment.createdAt)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {payment.proofBase64 && (
+                      <button onClick={() => handleViewProof(payment)} className="flex-1 px-3 py-2 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded-lg">View Proof</button>
+                    )}
+                    {payment.status === 'pending' && (
+                      <>
+                        <button onClick={() => handleConfirmPayment(payment)} className="flex-1 px-3 py-2 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg">Confirm</button>
+                        <button onClick={() => setRejectModal({ open: true, paymentId: payment.id, projectId: payment.projectId, reason: 'blurry', otherReason: '' })} className="flex-1 px-3 py-2 text-xs bg-red-600 hover:bg-red-500 text-white rounded-lg">Reject</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden lg:block bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
@@ -227,40 +271,21 @@ const Payments = () => {
                       <td className="px-6 py-4 text-gray-300">{payment.businessName || '-'}</td>
                       <td className="px-6 py-4 text-gray-300">{payment.projectType || '-'}</td>
                       <td className="px-6 py-4 text-green-400 font-semibold">{formatCurrency(payment.amount)}</td>
-                      <td className="px-6 py-4 text-gray-300">
-                        <span className="capitalize">{payment.type || 'downpayment'}</span>
-                      </td>
+                      <td className="px-6 py-4 text-gray-300"><span className="capitalize">{payment.type || 'downpayment'}</span></td>
                       <td className="px-6 py-4 text-gray-300">{payment.referenceNumber || '-'}</td>
                       <td className="px-6 py-4 text-gray-300">{formatDate(payment.createdAt)}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadge(payment.status)}`}>
-                          {payment.status}
-                        </span>
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${getStatusBadge(payment.status)}`}>{payment.status}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           {payment.proofBase64 && (
-                            <button
-                              onClick={() => handleViewProof(payment)}
-                              className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded"
-                            >
-                              View Proof
-                            </button>
+                            <button onClick={() => handleViewProof(payment)} className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded">View Proof</button>
                           )}
                           {payment.status === 'pending' && (
                             <>
-                              <button
-                                onClick={() => handleConfirmPayment(payment)}
-                                className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setRejectModal({ open: true, paymentId: payment.id, projectId: payment.projectId, reason: 'blurry', otherReason: '' })}
-                                className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded"
-                              >
-                                Reject
-                              </button>
+                              <button onClick={() => handleConfirmPayment(payment)} className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded">Confirm</button>
+                              <button onClick={() => setRejectModal({ open: true, paymentId: payment.id, projectId: payment.projectId, reason: 'blurry', otherReason: '' })} className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded">Reject</button>
                             </>
                           )}
                         </div>

@@ -21,7 +21,7 @@ const Proposal = () => {
       try {
         const docRef = doc(db, 'projects', id);
         const docSnap = await getDoc(docRef);
-        
+
         if (docSnap.exists()) {
           setProposal({ id: docSnap.id, ...docSnap.data() });
         } else {
@@ -48,7 +48,7 @@ const Proposal = () => {
 
   const handleAccept = async () => {
     if (!agreedToTerms || !agreedToScope) return;
-    
+
     setIsSubmitting(true);
     try {
       const docRef = doc(db, 'projects', id);
@@ -60,7 +60,7 @@ const Proposal = () => {
       // Create notification
       await createNotifications.proposalAccepted({
         id: id,
-        clientName: project?.clientName,
+        clientName: proposal?.clientName,
       });
       setShowSuccess(true);
     } catch (err) {
@@ -191,7 +191,7 @@ const Proposal = () => {
               <p className="text-white">{aiAssessment?.estimatedDays || '-'} days</p>
             </div>
           </div>
-          
+
           <div className="mb-4">
             <p className="text-gray-400 text-sm mb-2">Services Needed</p>
             <div className="flex flex-wrap gap-2">
@@ -223,7 +223,7 @@ const Proposal = () => {
         {/* Section 3 - Investment */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg p-6 mb-6 border border-gray-600">
           <h2 className="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2">Investment</h2>
-          
+
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-300">Total Project Cost</span>
@@ -237,7 +237,7 @@ const Proposal = () => {
               <span className="text-gray-300">Final Payment (50%)</span>
               <span className="text-white font-semibold">{formatCurrency(aiAssessment?.finalPayment)}</span>
             </div>
-            
+
             {proposal?.paymentPreference === 'saas' && (
               <div className="pt-4 border-t border-gray-600 mt-4">
                 <div className="flex justify-between items-center">
@@ -280,7 +280,7 @@ const Proposal = () => {
         {/* Section 5 - Agreement */}
         <div className="bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Agreement</h2>
-          
+
           <div className="space-y-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
@@ -293,7 +293,7 @@ const Proposal = () => {
                 I have read and agree to the Terms and Conditions
               </span>
             </label>
-            
+
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"

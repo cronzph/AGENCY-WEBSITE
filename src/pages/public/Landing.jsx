@@ -560,53 +560,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Per-Issue Pricing Section */}
-      <section id="per-issue" className="py-20 bg-gray-950">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4 text-white">Per-Issue Pricing</h2>
-          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
-            Transparent pricing for issue resolution after the initial 30-day warranty
-          </p>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-xl">
-              <thead>
-                <tr>
-                  <th className="p-4 border-b text-left text-gray-300">Bug Type</th>
-                  <th className="p-4 border-b text-left text-gray-300">Free Period</th>
-                  <th className="p-4 border-b text-left text-gray-300">After 30 Days</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-t">
-                  <td className="p-4 border-t text-gray-300">Minor (cosmetic)</td>
-                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
-                  <td className="p-4 border-t text-gray-300">FREE always</td>
-                </tr>
-                <tr className="border-t">
-                  <td className="p-4 border-t text-gray-300">Medium (broken feature)</td>
-                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
-                  <td className="p-4 border-t text-gray-300">₱1,000-₱2,500</td>
-                </tr>
-                <tr className="border-t">
-                  <td className="p-4 border-t text-gray-300">Major (core broken)</td>
-                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
-                  <td className="p-4 border-t text-gray-300">₱2,500-₱5,000</td>
-                </tr>
-                <tr className="border-t">
-                  <td className="p-4 border-t text-gray-300">Critical (system down)</td>
-                  <td className="p-4 border-t text-gray-300">30 days ✅</td>
-                  <td className="p-4 border-t text-gray-300">₱5,000+</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p className="mt-6 text-center text-gray-400 text-sm">
-            All issues resolved within 30 days of delivery are covered under our warranty at no additional cost.
-          </p>
-        </div>
-      </section>
 
       {/* Students/Capstone Section */}
       <section id="students" className="py-20 bg-gray-800/50">

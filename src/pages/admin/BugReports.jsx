@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { collection, query, getDocs, orderBy, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { analyzeBug } from '../../ai/bugRouter';
 import { useToast } from '../../components/shared/Toast';
 
@@ -32,8 +32,7 @@ const BugReports = () => {
 
                     // Get bug reports subcollection
                     const bugsQuery = query(
-                        collection(db, 'projects', projectDoc.id, 'bugReports'),
-                        orderBy('createdAt', 'desc')
+                        collection(db, 'projects', projectDoc.id, 'bugReports')
                     );
                     const bugsSnapshot = await getDocs(bugsQuery);
 
@@ -307,8 +306,8 @@ const BugReports = () => {
                                             key={status}
                                             onClick={() => handleStatusChange(selectedBug, status)}
                                             className={`px-3 py-1 rounded text-sm ${selectedBug.status === status
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                                 }`}
                                         >
                                             {status.charAt(0).toUpperCase() + status.slice(1)}

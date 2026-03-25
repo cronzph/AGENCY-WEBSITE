@@ -11,6 +11,8 @@ import {
     getDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import ConfirmModal from '../../components/shared/ConfirmModal';
+import { useToast } from '../../components/shared/Toast';
 
 const Billing = () => {
     const [billingRecords, setBillingRecords] = useState([]);
@@ -23,6 +25,8 @@ const Billing = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [generating, setGenerating] = useState(false);
     const [expandedClient, setExpandedClient] = useState(null);
+    const [generateModalOpen, setGenerateModalOpen] = useState(false);
+    const { showToast } = useToast();
 
     // Fetch SaaS projects and billing records
     useEffect(() => {
@@ -115,15 +119,7 @@ const Billing = () => {
     // Generate monthly bills
     const generateMonthlyBills = async () => {
         if (generating) return;
-
-        const confirmGenerate = window.confirm(
-            `Generate billing records for ${selectedMonth}?\n\nThis will create records for all SaaS clients who don't already have one for this month.`
-        );
-
-        if (!confirmGenerate) return;
-
         setGenerating(true);
-
         try {
             // Check which clients already have a record for this month
             const existingRecords = billingRecords.filter(r => r.billingMonth === selectedMonth);
@@ -161,10 +157,10 @@ const Billing = () => {
             }));
             setBillingRecords(billingData);
 
-            alert(`Created ${newRecords.length} billing record(s)`);
+            showToast(`Created ${newRecords.length} billing record(s)`, 'success');
         } catch (error) {
             console.error('Error generating bills:', error);
-            alert('Error generating bills. Please try again.');
+            showToast('Error generating bills. Please try again.', 'error');
         } finally {
             setGenerating(false);
         }
@@ -256,6 +252,7 @@ const Billing = () => {
     }
 
     return (
+        <>
         <div className="p-6">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white">SaaS Billing</h1>
@@ -293,7 +290,7 @@ const Billing = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={generateMonthlyBills}
+                        onClick={() => setGenerateModalOpen(true)}
                         disabled={generating}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                     >
@@ -487,6 +484,16 @@ const Billing = () => {
                 </div>
             </div>
         </div>
+        <ConfirmModal
+            isOpen={generateModalOpen}
+            title={`Generate bills for ${selectedMonth}?`}
+            message="This will create billing records for all SaaS clients who don't already have one for this month."
+            confirmText="Generate"
+            variant="info"
+            onConfirm={() => { setGenerateModalOpen(false); generateMonthlyBills(); }}
+            onCancel={() => setGenerateModalOpen(false)}
+        />
+        </>
     );
 };
 

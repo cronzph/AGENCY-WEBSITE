@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 
 const Clients = () => {
@@ -26,8 +26,7 @@ const Clients = () => {
     if (!authReady) return;
     
     const projectsQuery = query(
-      collection(db, 'projects'),
-      orderBy('createdAt', 'desc')
+      collection(db, 'projects')
     );
 
     const unsubscribe = onSnapshot(projectsQuery, async (snapshot) => {
@@ -163,77 +162,110 @@ const Clients = () => {
         <p className="text-gray-400 mt-1">Manage your client relationships</p>
       </div>
 
-      {/* Clients Table */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-800 text-left text-sm text-gray-400 font-semibold border-b border-gray-700">
-                <th className="px-6 py-4">Client Name</th>
-                <th className="px-6 py-4">Business</th>
-                <th className="px-6 py-4">Business Type</th>
-                <th className="px-6 py-4">Projects</th>
-                <th className="px-6 py-4">Active</th>
-                <th className="px-6 py-4">Total Paid</th>
-                <th className="px-6 py-4">SaaS</th>
-                <th className="px-6 py-4">Joined</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {clients.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
-                    <svg className="w-12 h-12 text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    <p className="text-gray-500">No clients found</p>
-                  </td>
-                </tr>
-              ) : (
-                clients.map((client, idx) => (
-                  <tr key={client.email} className={`hover:bg-gray-800 transition-colors ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}`}>
-                    <td className="px-6 py-4 text-white font-medium">{client.clientName || '-'}</td>
-                    <td className="px-6 py-4 text-gray-400">{client.businessName || '-'}</td>
-                    <td className="px-6 py-4 text-gray-400">{client.businessType || '-'}</td>
-                    <td className="px-6 py-4 text-white font-semibold">{client.totalProjects}</td>
-                    <td className="px-6 py-4 text-white font-semibold">{client.activeProjects}</td>
-                    <td className="px-6 py-4 text-green-400 font-semibold">{formatCurrency(client.totalPaid)}</td>
-                    <td className="px-6 py-4">
-                      {client.hasSaaS ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-400">
-                          No
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-gray-400">{formatDate(client.firstProjectDate)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <Link
-                          to={`/admin/projects?email=${encodeURIComponent(client.email)}`}
-                          className="px-3 py-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
-                        >
-                          View Projects
-                        </Link>
-                        <button
-                          onClick={() => openClientProfile(client)}
-                          className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                        >
-                          View Profile
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Clients — Mobile Cards + Desktop Table */}
+      {clients.length === 0 ? (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+          <svg className="w-12 h-12 text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <p className="text-gray-500">No clients found</p>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile Cards */}
+          <div className="flex flex-col gap-4 lg:hidden">
+            {clients.map((client) => (
+              <div key={client.email} className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-white font-semibold">{client.clientName || '-'}</p>
+                    <p className="text-gray-400 text-sm">{client.businessName || '-'}</p>
+                    <p className="text-gray-500 text-xs">{client.businessType || '-'}</p>
+                  </div>
+                  {client.hasSaaS && (
+                    <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">SaaS</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-gray-800 rounded-lg p-2">
+                    <p className="text-white font-bold text-lg">{client.totalProjects}</p>
+                    <p className="text-gray-500 text-xs">Projects</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-2">
+                    <p className="text-blue-400 font-bold text-lg">{client.activeProjects}</p>
+                    <p className="text-gray-500 text-xs">Active</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-2">
+                    <p className="text-green-400 font-bold text-sm">{formatCurrency(client.totalPaid)}</p>
+                    <p className="text-gray-500 text-xs">Paid</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Link
+                    to={`/admin/projects?email=${encodeURIComponent(client.email)}`}
+                    className="flex-1 text-center px-3 py-2 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+                  >
+                    Projects
+                  </Link>
+                  <button
+                    onClick={() => openClientProfile(client)}
+                    className="flex-1 px-3 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden lg:block bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-800 text-left text-sm text-gray-400 font-semibold border-b border-gray-700">
+                    <th className="px-6 py-4">Client Name</th>
+                    <th className="px-6 py-4">Business</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4">Projects</th>
+                    <th className="px-6 py-4">Active</th>
+                    <th className="px-6 py-4">Total Paid</th>
+                    <th className="px-6 py-4">SaaS</th>
+                    <th className="px-6 py-4">Joined</th>
+                    <th className="px-6 py-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {clients.map((client, idx) => (
+                    <tr key={client.email} className={`hover:bg-gray-800 transition-colors ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}`}>
+                      <td className="px-6 py-4 text-white font-medium">{client.clientName || '-'}</td>
+                      <td className="px-6 py-4 text-gray-400">{client.businessName || '-'}</td>
+                      <td className="px-6 py-4 text-gray-400">{client.businessType || '-'}</td>
+                      <td className="px-6 py-4 text-white font-semibold">{client.totalProjects}</td>
+                      <td className="px-6 py-4 text-white font-semibold">{client.activeProjects}</td>
+                      <td className="px-6 py-4 text-green-400 font-semibold">{formatCurrency(client.totalPaid)}</td>
+                      <td className="px-6 py-4">
+                        {client.hasSaaS ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">Yes</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-400">No</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-gray-400">{formatDate(client.firstProjectDate)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <Link to={`/admin/projects?email=${encodeURIComponent(client.email)}`} className="px-3 py-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors">View Projects</Link>
+                          <button onClick={() => openClientProfile(client)} className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">View Profile</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Client Profile Modal */}
       {selectedClient && (

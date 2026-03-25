@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '../../components/shared/Toast';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 
 const Portfolio = () => {
     const [activeTab, setActiveTab] = useState('portfolio');
@@ -9,6 +10,7 @@ const Portfolio = () => {
     const [testimonials, setTestimonials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [deleteModalId, setDeleteModalId] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
     const [filterType, setFilterType] = useState('all');
     const { showToast } = useToast();
@@ -114,14 +116,12 @@ const Portfolio = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this portfolio item?')) {
-            try {
-                await deleteDoc(doc(db, 'portfolio', id));
-                showToast('Portfolio item deleted', 'success');
-            } catch (err) {
-                console.error('Error deleting portfolio item:', err);
-                showToast('Failed to delete portfolio item', 'error');
-            }
+        try {
+            await deleteDoc(doc(db, 'portfolio', id));
+            showToast('Portfolio item deleted', 'success');
+        } catch (err) {
+            console.error('Error deleting portfolio item:', err);
+            showToast('Failed to delete portfolio item', 'error');
         }
     };
 
@@ -181,8 +181,10 @@ const Portfolio = () => {
     }
 
     return (
+        <>
         <div className="space-y-6">
             {/* Page Header */}
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Portfolio & Testimonials</h1>
@@ -287,7 +289,7 @@ const Portfolio = () => {
                                                 Edit
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(item.id)}
+                                                onClick={() => setDeleteModalId(item.id)}
                                                 className="px-3 py-1 bg-red-600/20 text-red-400 text-xs rounded-lg hover:bg-red-600/30 transition-colors"
                                             >
                                                 Delete
@@ -505,7 +507,18 @@ const Portfolio = () => {
                 </div>
             )}
         </div>
+        <ConfirmModal
+            isOpen={!!deleteModalId}
+            title="Delete portfolio item?"
+            message="This will permanently remove the item from your portfolio."
+            confirmText="Delete"
+            variant="danger"
+            onConfirm={() => { handleDelete(deleteModalId); setDeleteModalId(null); }}
+            onCancel={() => setDeleteModalId(null)}
+        />
+        </>
     );
 };
 
 export default Portfolio;
+

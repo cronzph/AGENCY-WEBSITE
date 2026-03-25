@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../firebase/config';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { useToast } from '../shared/Toast';
+import ConfirmModal from '../shared/ConfirmModal';
 
 // Sidebar Icons
 const DashboardIcon = () => (
@@ -121,6 +122,7 @@ const navItems = [
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -207,7 +209,7 @@ const AdminLayout = () => {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
           <span className="text-xl font-bold text-white">AgencyAdmin</span>
@@ -220,7 +222,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="px-4 py-6 space-y-2">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -241,9 +243,9 @@ const AdminLayout = () => {
         </nav>
 
         {/* Logout Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-gray-800 shrink-0">
           <button
-            onClick={handleLogout}
+            onClick={() => setLogoutModalOpen(true)}
             className="flex items-center gap-3 w-full px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
           >
             <LogoutIcon />
@@ -326,6 +328,17 @@ const AdminLayout = () => {
           <Outlet />
         </main>
       </div>
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={logoutModalOpen}
+        title="Log out?"
+        message="You will be redirected to the login page."
+        confirmText="Log Out"
+        cancelText="Stay"
+        variant="warning"
+        onConfirm={() => { setLogoutModalOpen(false); handleLogout(); }}
+        onCancel={() => setLogoutModalOpen(false)}
+      />
     </div>
   );
 };

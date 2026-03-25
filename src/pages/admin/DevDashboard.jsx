@@ -7,7 +7,7 @@ import {
     doc,
     serverTimestamp,
     query,
-    orderBy
+    deleteDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
@@ -17,11 +17,16 @@ const DevDashboard = () => {
     const [errorLogs, setErrorLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [apiStatuses, setApiStatuses] = useState({
-        groq: { status: 'unknown', responseTime: null, lastChecked: null },
-        openrouter: { status: 'unknown', responseTime: null, lastChecked: null },
-        cerebras: { status: 'unknown', responseTime: null, lastChecked: null },
+        groq: { status: 'unknown', responseTime: null, lastChecked: null, errorMessage: null },
+        openrouter: { status: 'unknown', responseTime: null, lastChecked: null, errorMessage: null },
+        cerebras: { status: 'unknown', responseTime: null, lastChecked: null, errorMessage: null },
     });
     const [checkingApis, setCheckingApis] = useState(false);
+    const [lastSynced, setLastSynced] = useState(null);
+    const [apiErrorModal, setApiErrorModal] = useState(null);
+    const [apiKeys, setApiKeys] = useState([]);
+    const [showAddKeyModal, setShowAddKeyModal] = useState(false);
+    const [newApiKey, setNewApiKey] = useState({ name: '', email: '', provider: 'groq', apiKey: '' });
     const [sortBy, setSortBy] = useState('healthScore');
     const [showLogModal, setShowLogModal] = useState(false);
     const [newLog, setNewLog] = useState({ message: '', source: 'Runtime', severity: 'info' });
@@ -43,8 +48,7 @@ const DevDashboard = () => {
                 for (const projectDoc of projectsSnap.docs) {
                     const projectData = projectDoc.data();
                     const bugsQuery = query(
-                        collection(db, 'projects', projectDoc.id, 'bugReports'),
-                        orderBy('createdAt', 'desc')
+                        collection(db, 'projects', projectDoc.id, 'bugReports')
                     );
                     const bugsSnap = await getDocs(bugsQuery);
                     bugsSnap.docs.forEach(bugDoc => {
@@ -61,8 +65,7 @@ const DevDashboard = () => {
 
                 // Fetch error logs
                 const logsQuery = query(
-                    collection(db, 'errorLogs'),
-                    orderBy('createdAt', 'desc')
+                    collection(db, 'errorLogs')
                 );
                 const logsSnap = await getDocs(logsQuery);
                 const logsData = logsSnap.docs.map(doc => ({
@@ -78,6 +81,31 @@ const DevDashboard = () => {
         };
 
         fetchData();
+    }, []);
+
+    // Fetch API keys and setup auto-sync
+    useEffect(() => {
+        const fetchApiKeys = async () => {
+            try {
+                const keysSnap = await getDocs(collection(db, 'apiKeys'));
+                const keysData = keysSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setApiKeys(keysData);
+            } catch (error) {
+                console.error('Error fetching API keys:', error);
+            }
+        };
+
+        fetchApiKeys();
+        checkAllApis();
+
+        const interval = setInterval(() => {
+            checkAllApis();
+        }, 300000); // 5 minutes
+
+        return () => clearInterval(interval);
     }, []);
 
     // Calculate project health scores
@@ -162,18 +190,30 @@ const DevDashboard = () => {
             });
 
             const responseTime = Date.now() - startTime;
+            let errorMessage = null;
 
-            // Any response (even 4xx/5xx) means API is online
+            // Capture error details if response is not ok
+            if (!response.ok) {
+                try {
+                    const errorData = await response.text();
+                    errorMessage = errorData || `HTTP ${response.status}: ${response.statusText}`;
+                } catch (e) {
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+            }
+
             return {
                 status: response.ok ? 'online' : 'error',
                 responseTime,
-                lastChecked: new Date()
+                lastChecked: new Date(),
+                errorMessage
             };
         } catch (error) {
             return {
                 status: 'offline',
                 responseTime: Date.now() - startTime,
-                lastChecked: new Date()
+                lastChecked: new Date(),
+                errorMessage: error.message
             };
         }
     };
@@ -181,14 +221,26 @@ const DevDashboard = () => {
     const checkAllApis = async () => {
         setCheckingApis(true);
 
+        // Get env var keys
         const groqKey = import.meta.env.VITE_GROQ_API_KEY;
         const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
         const cerebrasKey = import.meta.env.VITE_CEREBRAS_API_KEY;
 
+        // Build key map: prefer Firestore keys over env vars
+        const keyMap = {};
+        apiKeys.forEach(k => {
+            keyMap[k.provider] = k.apiKey;
+        });
+
+        // Use Firestore key if available, otherwise fall back to env var
+        const effectiveGroqKey = keyMap.groq || groqKey;
+        const effectiveOpenrouterKey = keyMap.openrouter || openrouterKey;
+        const effectiveCerebrasKey = keyMap.cerebras || cerebrasKey;
+
         const results = await Promise.all([
-            checkApiHealth('groq', 'https://api.groq.com/openai/v1/chat/completions', groqKey),
-            checkApiHealth('openrouter', 'https://openrouter.ai/api/v1/chat/completions', openrouterKey),
-            checkApiHealth('cerebras', 'https://api.cerebras.ai/v1/chat/completions', cerebrasKey)
+            checkApiHealth('groq', 'https://api.groq.com/openai/v1/chat/completions', effectiveGroqKey),
+            checkApiHealth('openrouter', 'https://openrouter.ai/api/v1/chat/completions', effectiveOpenrouterKey),
+            checkApiHealth('cerebras', 'https://api.cerebras.ai/v1/chat/completions', effectiveCerebrasKey)
         ]);
 
         setApiStatuses({
@@ -197,7 +249,35 @@ const DevDashboard = () => {
             cerebras: results[2]
         });
 
+        setLastSynced(new Date());
         setCheckingApis(false);
+    };
+
+    // Add new API key
+    const addApiKey = async () => {
+        if (!newApiKey.name.trim() || !newApiKey.apiKey.trim()) return;
+        try {
+            await addDoc(collection(db, 'apiKeys'), {
+                ...newApiKey,
+                createdAt: new Date()
+            });
+            const keysSnap = await getDocs(collection(db, 'apiKeys'));
+            setApiKeys(keysSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setShowAddKeyModal(false);
+            setNewApiKey({ name: '', email: '', provider: 'groq', apiKey: '' });
+        } catch (error) {
+            console.error('Error adding API key:', error);
+        }
+    };
+
+    // Delete API key
+    const deleteApiKey = async (keyId) => {
+        try {
+            await deleteDoc(doc(db, 'apiKeys', keyId));
+            setApiKeys(prev => prev.filter(k => k.id !== keyId));
+        } catch (error) {
+            console.error('Error deleting API key:', error);
+        }
     };
 
     // Mark error as resolved
@@ -261,9 +341,10 @@ const DevDashboard = () => {
 
     // Get API status color
     const getApiStatusColor = (status) => {
-        if (status === 'online') return 'text-green-400';
-        if (status === 'error') return 'text-yellow-400';
-        return 'text-gray-400';
+        if (status === 'online') return 'text-green-400 bg-green-400/20';
+        if (status === 'error') return 'text-yellow-400 bg-yellow-400/20';
+        if (status === 'offline') return 'text-red-400 bg-red-400/20';
+        return 'text-gray-400 bg-gray-400/20';
     };
 
     // Format time ago
@@ -323,13 +404,13 @@ const DevDashboard = () => {
                 </div>
 
                 <div className={`bg-gray-800 border rounded-xl p-5 ${Object.values(apiStatuses).every(s => s.status === 'online') ? 'border-green-700' :
-                        Object.values(apiStatuses).some(s => s.status === 'offline') ? 'border-red-700' :
-                            'border-gray-700'
+                    Object.values(apiStatuses).some(s => s.status === 'offline') ? 'border-red-700' :
+                        'border-gray-700'
                     }`}>
                     <p className="text-gray-400 text-sm mb-1">API Health</p>
                     <p className={`text-2xl font-bold ${Object.values(apiStatuses).every(s => s.status === 'online') ? 'text-green-400' :
-                            Object.values(apiStatuses).some(s => s.status === 'offline') ? 'text-red-400' :
-                                'text-yellow-400'
+                        Object.values(apiStatuses).some(s => s.status === 'offline') ? 'text-red-400' :
+                            'text-yellow-400'
                         }`}>
                         {Object.values(apiStatuses).filter(s => s.status === 'online').length}/3 Online
                     </p>
@@ -339,7 +420,12 @@ const DevDashboard = () => {
             {/* API Status Monitor */}
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-white">API Status</h2>
+                    <div>
+                        <h2 className="text-lg font-semibold text-white">API Status</h2>
+                        {lastSynced && (
+                            <p className="text-xs text-gray-400 mt-1">Last synced: {timeAgo(lastSynced)}</p>
+                        )}
+                    </div>
                     <button
                         onClick={checkAllApis}
                         disabled={checkingApis}
@@ -359,25 +445,178 @@ const DevDashboard = () => {
                             </>
                         )}
                     </button>
+                    <button
+                        onClick={() => setShowAddKeyModal(true)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add API Key
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {Object.entries(apiStatuses).map(([api, data]) => (
-                        <div key={api} className="bg-gray-700/30 rounded-lg p-4">
+                        <div
+                            key={api}
+                            className={`bg-gray-700/30 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors ${data.errorMessage ? 'ring-2 ring-yellow-500/50' : ''}`}
+                            onClick={() => data.errorMessage && setApiErrorModal({ api, ...data })}
+                        >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-white font-medium capitalize">{api}</span>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${getApiStatusColor(data.status)} bg-gray-800`}>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${getApiStatusColor(data.status)}`}>
                                     {data.status}
                                 </span>
                             </div>
                             <div className="text-sm text-gray-400">
                                 <p>Response: {data.responseTime ? `${data.responseTime}ms` : 'N/A'}</p>
                                 <p>Last checked: {data.lastChecked ? timeAgo(data.lastChecked) : 'Never'}</p>
+                                {data.errorMessage && (
+                                    <p className="text-yellow-400 mt-1 text-xs truncate">⚠️ {data.errorMessage}</p>
+                                )}
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
+
+            {/* API Error Details Modal */}
+            {apiErrorModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-lg w-full">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold text-white capitalize">{apiErrorModal.api} API Error</h3>
+                            <button onClick={() => setApiErrorModal(null)} className="text-gray-400 hover:text-white">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="bg-gray-900 rounded-lg p-4 mb-4 max-h-48 overflow-y-auto">
+                            <p className="text-yellow-400 text-sm font-mono whitespace-pre-wrap">{apiErrorModal.errorMessage}</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setApiErrorModal(null);
+                                    checkAllApis();
+                                }}
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Retry
+                            </button>
+                            <button
+                                onClick={() => setApiErrorModal(null)}
+                                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add API Key Modal */}
+            {showAddKeyModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold text-white">Add API Key</h3>
+                            <button onClick={() => setShowAddKeyModal(false)} className="text-gray-400 hover:text-white">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={newApiKey.name}
+                                    onChange={(e) => setNewApiKey({ ...newApiKey, name: e.target.value })}
+                                    placeholder="My API Key"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Email (optional)</label>
+                                <input
+                                    type="email"
+                                    value={newApiKey.email}
+                                    onChange={(e) => setNewApiKey({ ...newApiKey, email: e.target.value })}
+                                    placeholder="user@example.com"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Provider</label>
+                                <select
+                                    value={newApiKey.provider}
+                                    onChange={(e) => setNewApiKey({ ...newApiKey, provider: e.target.value })}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="groq">Groq</option>
+                                    <option value="openrouter">OpenRouter</option>
+                                    <option value="cerebras">Cerebras</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">API Key</label>
+                                <input
+                                    type="password"
+                                    value={newApiKey.apiKey}
+                                    onChange={(e) => setNewApiKey({ ...newApiKey, apiKey: e.target.value })}
+                                    placeholder="sk-..."
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={addApiKey}
+                                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Add Key
+                            </button>
+                            <button
+                                onClick={() => setShowAddKeyModal(false)}
+                                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* API Keys List */}
+            {apiKeys.length > 0 && (
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
+                    <h2 className="text-lg font-semibold text-white mb-4">Saved API Keys</h2>
+                    <div className="space-y-2">
+                        {apiKeys.map(key => (
+                            <div key={key.id} className="flex items-center justify-between bg-gray-700/30 rounded-lg p-3">
+                                <div>
+                                    <p className="text-white font-medium">{key.name}</p>
+                                    <p className="text-sm text-gray-400">
+                                        {key.provider} {key.email && `• ${key.email}`}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => deleteApiKey(key.id)}
+                                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Per-Project Health Table */}
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 mb-8">
@@ -417,8 +656,8 @@ const DevDashboard = () => {
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`px-2 py-1 rounded text-xs ${project.status === 'delivered' ? 'bg-green-600/20 text-green-400' :
-                                                project.status === 'in_progress' ? 'bg-blue-600/20 text-blue-400' :
-                                                    'bg-gray-600/20 text-gray-400'
+                                            project.status === 'in_progress' ? 'bg-blue-600/20 text-blue-400' :
+                                                'bg-gray-600/20 text-gray-400'
                                             }`}>
                                             {project.status}
                                         </span>
@@ -453,19 +692,19 @@ const DevDashboard = () => {
                             <div
                                 key={log.id}
                                 className={`p-4 rounded-lg border ${log.resolved ? 'border-gray-700 bg-gray-700/20' :
-                                        log.severity === 'critical' ? 'border-red-700 bg-red-900/20' :
-                                            log.severity === 'error' ? 'border-red-600 bg-red-900/10' :
-                                                log.severity === 'warning' ? 'border-yellow-700 bg-yellow-900/20' :
-                                                    'border-gray-700 bg-gray-700/30'
+                                    log.severity === 'critical' ? 'border-red-700 bg-red-900/20' :
+                                        log.severity === 'error' ? 'border-red-600 bg-red-900/10' :
+                                            log.severity === 'warning' ? 'border-yellow-700 bg-yellow-900/20' :
+                                                'border-gray-700 bg-gray-700/30'
                                     }`}
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className={`px-2 py-0.5 rounded text-xs ${log.severity === 'critical' ? 'bg-red-600 text-white' :
-                                                    log.severity === 'error' ? 'bg-red-500 text-white' :
-                                                        log.severity === 'warning' ? 'bg-yellow-500 text-white' :
-                                                            'bg-blue-500 text-white'
+                                                log.severity === 'error' ? 'bg-red-500 text-white' :
+                                                    log.severity === 'warning' ? 'bg-yellow-500 text-white' :
+                                                        'bg-blue-500 text-white'
                                                 }`}>
                                                 {log.severity}
                                             </span>
@@ -517,17 +756,17 @@ const DevDashboard = () => {
                                         <td className="px-4 py-3 text-gray-300">{bug.projectName}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 rounded text-xs ${bug.aiAnalysis?.severity === 'Critical' ? 'bg-red-600 text-white' :
-                                                    bug.aiAnalysis?.severity === 'Major' ? 'bg-orange-500 text-white' :
-                                                        bug.aiAnalysis?.severity === 'Medium' ? 'bg-yellow-500 text-white' :
-                                                            'bg-gray-500 text-white'
+                                                bug.aiAnalysis?.severity === 'Major' ? 'bg-orange-500 text-white' :
+                                                    bug.aiAnalysis?.severity === 'Medium' ? 'bg-yellow-500 text-white' :
+                                                        'bg-gray-500 text-white'
                                                 }`}>
                                                 {bug.aiAnalysis?.severity || 'Unknown'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 rounded text-xs ${bug.status === 'resolved' || bug.status === 'closed' ? 'bg-green-600/20 text-green-400' :
-                                                    bug.status === 'open' ? 'bg-red-600/20 text-red-400' :
-                                                        'bg-blue-600/20 text-blue-400'
+                                                bug.status === 'open' ? 'bg-red-600/20 text-red-400' :
+                                                    'bg-blue-600/20 text-blue-400'
                                                 }`}>
                                                 {bug.status}
                                             </span>
