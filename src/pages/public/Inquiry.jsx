@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { assessInquiry } from '../../ai/cerebras';
@@ -6,6 +7,7 @@ import { getAgencyName } from '../../utils/settings';
 import { createNotifications } from '../../utils/notifications';
 
 const Inquiry = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     // Section 1 - Personal Info
     fullName: '',
@@ -28,6 +30,7 @@ const Inquiry = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [inquiryRef, setInquiryRef] = useState('');
   const [error, setError] = useState('');
   const [errors, setErrors] = useState({});
   const [agencyName, setAgencyName] = useState('CronzPH');
@@ -208,6 +211,40 @@ const Inquiry = () => {
     );
   };
 
+  // Validate only the current step
+  const validateStep = (step) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^09\d{9}$/;
+    const newErrors = {};
+
+    if (step === 1) {
+      // Step 1: Personal Info - require name, email (valid format), phone
+      if (!formData.fullName?.trim()) newErrors.fullName = 'Full Name is required';
+      if (!formData.businessName?.trim()) newErrors.businessName = 'Business Name is required';
+      if (!formData.email?.trim()) newErrors.email = 'Email is required';
+      else if (!emailRegex.test(formData.email.trim())) newErrors.email = 'Please enter a valid email';
+      if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
+      else if (!phoneRegex.test(formData.phone.trim())) newErrors.phone = 'Please enter a valid phone (e.g., 09123456789)';
+    } else if (step === 2) {
+      // Step 2: Business Info - require business name, industry/type
+      if (!formData.businessType) newErrors.businessType = 'Business Type is required';
+      if (!formData.monthlyIncome) newErrors.monthlyIncome = 'Monthly Revenue is required';
+    } else if (step === 3) {
+      // Step 3: Project Info - require services, description, timeline
+      if (formData.services.length === 0) newErrors.services = 'Select at least one service';
+      if (!formData.projectDescription?.trim()) newErrors.projectDescription = 'Project Description is required';
+      if (!formData.timeline) newErrors.timeline = 'Timeline is required';
+    } else if (step === 4) {
+      // Step 4: Service - require budget, payment type
+      if (!formData.budgetRange) newErrors.budgetRange = 'Budget is required';
+      if (!formData.paymentType) newErrors.paymentType = 'Payment Preference is required';
+      if (formData.paymentType === 'saas' && !formData.selectedTier) newErrors.selectedTier = 'Please select a maintenance tier';
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -237,8 +274,8 @@ const Inquiry = () => {
       });
 
       // Create notification for new inquiry
-      await createNotifications.newInquiry({ 
-        id: docRef.id, 
+      await createNotifications.newInquiry({
+        id: docRef.id,
         clientName: formData.fullName,
         businessName: formData.businessName,
       });
@@ -285,12 +322,35 @@ const Inquiry = () => {
       });
 
       setShowSuccess(true);
+      setInquiryRef(docRef.id);
     } catch (err) {
       console.error('Error submitting form:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Reset form to step 1
+  const resetForm = () => {
+    setFormData({
+      fullName: '',
+      businessName: '',
+      email: '',
+      phone: '',
+      fbPage: '',
+      businessType: '',
+      monthlyIncome: '',
+      services: [],
+      projectDescription: '',
+      timeline: '',
+      paymentType: '',
+      budgetRange: '',
+      selectedTier: '',
+    });
+    setCurrentStep(1);
+    setShowSuccess(false);
+    setInquiryRef('');
   };
 
   if (showSuccess) {
@@ -302,10 +362,31 @@ const Inquiry = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-4">Inquiry Submitted and Assessed!</h2>
-          <p className="text-gray-300">
-            Your inquiry has been submitted and assessed! We will send you a proposal via Facebook or email within 24 hours.
+          <h2 className="text-2xl font-bold text-white mb-4">Inquiry Submitted!</h2>
+          <p className="text-gray-300 mb-4">
+            Thank you for your inquiry! We'll be in touch soon.
           </p>
+          {inquiryRef && (
+            <div className="mb-6 p-4 bg-gray-700 rounded-lg">
+              <p className="text-gray-400 text-sm mb-1">Your Reference #</p>
+              <p className="text-white font-mono text-lg font-bold">{inquiryRef}</p>
+            </div>
+          )}
+          <button
+            onClick={() => navigate('/portal/login')}
+            className="w-full mb-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            Track Your Project Progress →
+          </button>
+          <p className="text-gray-400 text-sm mb-4">
+            Log in with your email to check your project status anytime.
+          </p>
+          <button
+            onClick={resetForm}
+            className="w-full bg-gray-600 hover:bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Submit Another Inquiry
+          </button>
         </div>
       </div>
     );
@@ -325,11 +406,10 @@ const Inquiry = () => {
           <div className="flex justify-between mb-2">
             {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex flex-col items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  step < currentStep ? 'bg-green-500 text-white' :
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${step < currentStep ? 'bg-green-500 text-white' :
                   step === currentStep ? 'bg-blue-600 text-white' :
-                  'bg-gray-700 text-gray-400'
-                }`}>
+                    'bg-gray-700 text-gray-400'
+                  }`}>
                   {step < currentStep ? '✓' : step}
                 </div>
                 <span className={`text-xs mt-1 hidden sm:block ${step === currentStep ? 'text-blue-400' : 'text-gray-500'}`}>
@@ -339,8 +419,8 @@ const Inquiry = () => {
             ))}
           </div>
           <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
-            <div 
-              className="bg-blue-600 h-full transition-all duration-300" 
+            <div
+              className="bg-blue-600 h-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
@@ -354,307 +434,340 @@ const Inquiry = () => {
           )}
 
           {/* Section 1 - Personal Info */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Personal Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
-              </div>
+          {currentStep === 1 && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Personal Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Business Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="businessName"
-                  value={formData.businessName}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Business Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="businessName"
+                    value={formData.businessName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Facebook Page/Profile Link
-                </label>
-                <input
-                  type="text"
-                  name="fbPage"
-                  value={formData.fbPage}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="https://facebook.com/yourpage"
-                />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Facebook Page/Profile Link
+                  </label>
+                  <input
+                    type="text"
+                    name="fbPage"
+                    value={formData.fbPage}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://facebook.com/yourpage"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Section 2 - Business Info */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Business Information</h2>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Business Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="businessType"
-                value={formData.businessType}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select Business Type</option>
-                {businessTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-              {errors.businessType && <p className="text-red-500 text-sm mt-1">{errors.businessType}</p>}
-            </div>
+          {currentStep === 2 && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Business Information</h2>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Monthly Business Revenue <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {incomeBrackets.map((bracket) => (
-                  <label key={bracket} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                    <input
-                      type="radio"
-                      name="monthlyIncome"
-                      value={bracket}
-                      checked={formData.monthlyIncome === bracket}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-blue-500"
-                    />
-                    <span className="text-white">{bracket}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.monthlyIncome && <p className="text-red-500 text-sm mt-1">{errors.monthlyIncome}</p>}
-            </div>
-          </div>
-
-          {/* Section 3 - Project Info */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Project Information</h2>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Services Needed <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {servicesList.map((service) => (
-                  <label key={service} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={formData.services.includes(service)}
-                      onChange={() => handleCheckboxChange(service)}
-                      className="w-4 h-4 text-blue-500 rounded"
-                    />
-                    <span className="text-white">{service}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.services && <p className="text-red-500 text-sm mt-1">{errors.services}</p>}
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Project Description <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                name="projectDescription"
-                value={formData.projectDescription}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Describe what you need in detail..."
-              />
-              {errors.projectDescription && <p className="text-red-500 text-sm mt-1">{errors.projectDescription}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Preferred Timeline <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="timeline"
-                value={formData.timeline}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select Timeline</option>
-                {timelines.map((time) => (
-                  <option key={time} value={time}>{time}</option>
-                ))}
-              </select>
-              {errors.timeline && <p className="text-red-500 text-sm mt-1">{errors.timeline}</p>}
-            </div>
-          </div>
-
-          {/* Section 4 - Service Type & Budget */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Service Type</h2>
-            
-            {/* Budget Range */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                What is your estimated budget? <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {budgetRanges.map((range) => (
-                  <label key={range} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                    <input
-                      type="radio"
-                      name="budgetRange"
-                      value={range}
-                      checked={formData.budgetRange === range}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-blue-500"
-                    />
-                    <span className="text-white">{range}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-gray-400 text-sm mt-2">
-                Don't worry — this is just an estimate. We'll work with your budget and suggest the best solution for your business.
-              </p>
-              {errors.budgetRange && <p className="text-red-500 text-sm mt-1">{errors.budgetRange}</p>}
-            </div>
-
-            {/* Payment Preference */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Payment Preference <span className="text-red-500">*</span>
-              </label>
-              <div className="space-y-3">
-                <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="build-only"
-                    checked={formData.paymentType === 'build-only'}
-                    onChange={handleInputChange}
-                    className="w-4 h-4 text-blue-500 mt-1"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Build Only</span>
-                    <p className="text-gray-400 text-sm">I will maintain it myself</p>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="saas"
-                    checked={formData.paymentType === 'saas'}
-                    onChange={handleInputChange}
-                    className="w-4 h-4 text-blue-500 mt-1"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Build + SaaS</span>
-                    <p className="text-gray-400 text-sm">Monthly maintenance by developer</p>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="student"
-                    checked={formData.paymentType === 'student'}
-                    onChange={handleInputChange}
-                    className="w-4 h-4 text-blue-500 mt-1"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Student/Capstone</span>
-                    <p className="text-gray-400 text-sm">Special pricing for academic projects</p>
-                  </div>
-                </label>
-              </div>
-              {errors.paymentType && <p className="text-red-500 text-sm mt-1">{errors.paymentType}</p>}
-            </div>
-
-            {/* SaaS Tier Selection */}
-            {formData.paymentType === 'saas' && (
-              <div className="mt-6">
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Select Maintenance Tier <span className="text-red-500">*</span>
+                  Business Type <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-3">
-                  {saasTiers.map((tier) => (
-                    <label 
-                      key={tier.id} 
-                      className={`flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 border-2 ${formData.selectedTier === tier.id ? 'border-blue-500' : 'border-transparent'}`}
-                    >
+                <select
+                  name="businessType"
+                  value={formData.businessType}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Business Type</option>
+                  {businessTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                {errors.businessType && <p className="text-red-500 text-sm mt-1">{errors.businessType}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Monthly Business Revenue <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {incomeBrackets.map((bracket) => (
+                    <label key={bracket} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
                       <input
                         type="radio"
-                        name="selectedTier"
-                        value={tier.id}
-                        checked={formData.selectedTier === tier.id}
+                        name="monthlyIncome"
+                        value={bracket}
+                        checked={formData.monthlyIncome === bracket}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-blue-500 mt-1"
+                        className="w-4 h-4 text-blue-500"
                       />
-                      <div>
-                        <span className="text-white font-medium">{tier.name} - {tier.price}</span>
-                        <p className="text-gray-400 text-sm">{tier.description}</p>
-                        <p className="text-blue-400 text-xs mt-1">Includes: {tier.includes}</p>
-                      </div>
+                      <span className="text-white">{bracket}</span>
                     </label>
                   ))}
                 </div>
-                {errors.selectedTier && <p className="text-red-500 text-sm mt-1">{errors.selectedTier}</p>}
+                {errors.monthlyIncome && <p className="text-red-500 text-sm mt-1">{errors.monthlyIncome}</p>}
               </div>
+            </div>
+          )}
+
+          {/* Section 3 - Project Info */}
+          {currentStep === 3 && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Project Information</h2>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Services Needed <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {servicesList.map((service) => (
+                    <label key={service} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={formData.services.includes(service)}
+                        onChange={() => handleCheckboxChange(service)}
+                        className="w-4 h-4 text-blue-500 rounded"
+                      />
+                      <span className="text-white">{service}</span>
+                    </label>
+                  ))}
+                </div>
+                {errors.services && <p className="text-red-500 text-sm mt-1">{errors.services}</p>}
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Project Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  name="projectDescription"
+                  value={formData.projectDescription}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Describe what you need in detail..."
+                />
+                {errors.projectDescription && <p className="text-red-500 text-sm mt-1">{errors.projectDescription}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Preferred Timeline <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="timeline"
+                  value={formData.timeline}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Timeline</option>
+                  {timelines.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                {errors.timeline && <p className="text-red-500 text-sm mt-1">{errors.timeline}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Section 4 - Service Type & Budget */}
+          {currentStep === 4 && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Service Type</h2>
+
+              {/* Budget Range */}
+              <div className="mb-8">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  What is your estimated budget? <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {budgetRanges.map((range) => (
+                    <label key={range} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                      <input
+                        type="radio"
+                        name="budgetRange"
+                        value={range}
+                        checked={formData.budgetRange === range}
+                        onChange={handleInputChange}
+                        className="w-4 h-4 text-blue-500"
+                      />
+                      <span className="text-white">{range}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-gray-400 text-sm mt-2">
+                  Don't worry — this is just an estimate. We'll work with your budget and suggest the best solution for your business.
+                </p>
+                {errors.budgetRange && <p className="text-red-500 text-sm mt-1">{errors.budgetRange}</p>}
+              </div>
+
+              {/* Payment Preference */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Payment Preference <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="build-only"
+                      checked={formData.paymentType === 'build-only'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-500 mt-1"
+                    />
+                    <div>
+                      <span className="text-white font-medium">Build Only</span>
+                      <p className="text-gray-400 text-sm">I will maintain it myself</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="saas"
+                      checked={formData.paymentType === 'saas'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-500 mt-1"
+                    />
+                    <div>
+                      <span className="text-white font-medium">Build + SaaS</span>
+                      <p className="text-gray-400 text-sm">Monthly maintenance by developer</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="student"
+                      checked={formData.paymentType === 'student'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-500 mt-1"
+                    />
+                    <div>
+                      <span className="text-white font-medium">Student/Capstone</span>
+                      <p className="text-gray-400 text-sm">Special pricing for academic projects</p>
+                    </div>
+                  </label>
+                </div>
+                {errors.paymentType && <p className="text-red-500 text-sm mt-1">{errors.paymentType}</p>}
+              </div>
+
+              {/* SaaS Tier Selection */}
+              {formData.paymentType === 'saas' && (
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Select Maintenance Tier <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-3">
+                    {saasTiers.map((tier) => (
+                      <label
+                        key={tier.id}
+                        className={`flex items-start gap-3 p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 border-2 ${formData.selectedTier === tier.id ? 'border-blue-500' : 'border-transparent'}`}
+                      >
+                        <input
+                          type="radio"
+                          name="selectedTier"
+                          value={tier.id}
+                          checked={formData.selectedTier === tier.id}
+                          onChange={handleInputChange}
+                          className="w-4 h-4 text-blue-500 mt-1"
+                        />
+                        <div>
+                          <span className="text-white font-medium">{tier.name} - {tier.price}</span>
+                          <p className="text-gray-400 text-sm">{tier.description}</p>
+                          <p className="text-blue-400 text-xs mt-1">Includes: {tier.includes}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.selectedTier && <p className="text-red-500 text-sm mt-1">{errors.selectedTier}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex gap-3 mt-6">
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={() => setCurrentStep(currentStep - 1)}
+                className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                Previous
+              </button>
+            )}
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (validateStep(currentStep)) {
+                    setCurrentStep(currentStep + 1);
+                  }
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting || !isFormValid()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
+              </button>
             )}
           </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting || !isFormValid()}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
-          </button>
         </form>
       </div>
     </div>
