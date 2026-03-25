@@ -1,15 +1,11 @@
 /**
- * Assess a client inquiry using Groq AI
+ * Assess a client inquiry using AI with automatic provider fallback
  * @param {Object} inquiryData - Client inquiry data
  * @returns {Promise<Object>} - Assessment results
  */
+import { callAIJson } from './callAI';
+
 export const assessInquiry = async (inquiryData) => {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('Groq API key not configured. Please set VITE_GROQ_API_KEY in .env');
-  }
-
   const prompt = `You are an expert web developer and business analyst for a Filipino freelance agency. Analyze this client inquiry and return a JSON response only, no other text.
 
 Client Inquiry:
@@ -75,49 +71,9 @@ Return this exact JSON structure:
 }`;
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0]) {
-      throw new Error('Invalid response from Groq API');
-    }
-
-    const content = data.choices[0].message.content;
-
-    // Parse the JSON response
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
-      return JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      throw new Error('Failed to parse AI response as JSON');
-    }
+    return await callAIJson(prompt, { max_tokens: 1024 });
   } catch (error) {
-    console.error('Groq API Error:', error);
+    console.error('AI assessment failed:', error);
     throw new Error(`AI assessment failed: ${error.message}`);
   }
 };

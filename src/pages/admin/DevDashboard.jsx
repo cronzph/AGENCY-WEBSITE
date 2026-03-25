@@ -3,8 +3,10 @@ import {
     collection,
     addDoc,
     getDocs,
+    getDoc,
     updateDoc,
     doc,
+    setDoc,
     serverTimestamp,
     query,
     deleteDoc
@@ -42,6 +44,9 @@ const DevDashboard = () => {
     const [newApiKey, setNewApiKey] = useState({ name: '', email: '', provider: 'groq', model: '', apiKey: '' });
     const [showKeyValue, setShowKeyValue] = useState(false);
     const [providerModels, setProviderModels] = useState(DEFAULT_MODELS);
+    const [editingKey, setEditingKey] = useState(null);
+    const [showEditKeyModal, setShowEditKeyModal] = useState(false);
+    const [editShowKeyValue, setEditShowKeyValue] = useState(false);
     const [showModelsModal, setShowModelsModal] = useState(false);
     const [editingModels, setEditingModels] = useState({ provider: 'groq', models: [], newModel: '' });
     const [selectedKeyPerProvider, setSelectedKeyPerProvider] = useState({});
@@ -112,6 +117,22 @@ const DevDashboard = () => {
                 }));
                 setApiKeys(keysData);
 
+                // Fetch saved selection from Firestore and auto-select first key per provider
+                const selectionDoc = await getDoc(doc(db, 'adminSettings', 'apiKeySelection'));
+                const savedSelection = selectionDoc.exists() ? selectionDoc.data() : {};
+                const autoSelected = { ...savedSelection };
+                ['groq', 'openrouter', 'cerebras'].forEach(provider => {
+                    if (!autoSelected[provider]) {
+                        const first = keysData.find(k => k.provider === provider);
+                        if (first) autoSelected[provider] = first.id;
+                    } else {
+                        // Validate saved ID still exists (key may have been deleted)
+                        const stillExists = keysData.find(k => k.id === autoSelected[provider]);
+                        if (!stillExists) delete autoSelected[provider];
+                    }
+                });
+                setSelectedKeyPerProvider(autoSelected);
+
                 // Fetch saved provider models
                 const modelsSnap = await getDocs(collection(db, 'providerModels'));
                 if (modelsSnap.docs.length > 0) {
@@ -121,12 +142,15 @@ const DevDashboard = () => {
                     });
                     setProviderModels(savedModels);
                 }
+
+                // Call with fresh keysData directly — bypasses stale closure
+                await checkAllApis(keysData);
             } catch (error) {
                 console.error('Error fetching API data:', error);
             }
         };
 
-        fetchApiData().then(() => checkAllApis());
+        fetchApiData();
 
         const interval = setInterval(() => {
             checkAllApis();
@@ -134,6 +158,15 @@ const DevDashboard = () => {
 
         return () => clearInterval(interval);
     }, []);
+
+    // Save API key selection to Firestore
+    const saveSelection = async (updated) => {
+        try {
+            await setDoc(doc(db, 'adminSettings', 'apiKeySelection'), updated);
+        } catch (e) {
+            console.error('Failed to save API key selection:', e);
+        }
+    };
 
     // Calculate project health scores
     const getProjectHealth = (projectId) => {
@@ -246,28 +279,33 @@ const DevDashboard = () => {
         }
     };
 
-    const checkAllApis = async () => {
+    const checkAllApis = async (keys) => {
         setCheckingApis(true);
 
-        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-        const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-        const cerebrasKey = import.meta.env.VITE_CEREBRAS_API_KEY;
+        // Use passed-in keys (for initial load) or fall back to state
+        const effectiveKeys = keys ?? apiKeys;
+
+        const envKeys = {
+            groq: import.meta.env.VITE_GROQ_API_KEY,
+            openrouter: import.meta.env.VITE_OPENROUTER_API_KEY,
+            cerebras: import.meta.env.VITE_CEREBRAS_API_KEY,
+        };
 
         // Build key map: prefer selected key per provider, then first Firestore key, then env var
         const getEffectiveKey = (provider, envKey) => {
             const selectedId = selectedKeyPerProvider[provider];
             if (selectedId) {
-                const found = apiKeys.find(k => k.id === selectedId);
+                const found = effectiveKeys.find(k => k.id === selectedId);
                 if (found) return { key: found.apiKey, model: found.model };
             }
-            const providerKeys = apiKeys.filter(k => k.provider === provider);
+            const providerKeys = effectiveKeys.filter(k => k.provider === provider);
             if (providerKeys.length > 0) return { key: providerKeys[0].apiKey, model: providerKeys[0].model };
             return { key: envKey, model: null };
         };
 
-        const groq = getEffectiveKey('groq', groqKey);
-        const openrouter = getEffectiveKey('openrouter', openrouterKey);
-        const cerebras = getEffectiveKey('cerebras', cerebrasKey);
+        const groq = getEffectiveKey('groq', envKeys.groq);
+        const openrouter = getEffectiveKey('openrouter', envKeys.openrouter);
+        const cerebras = getEffectiveKey('cerebras', envKeys.cerebras);
 
         const results = await Promise.all([
             checkApiHealth('groq', PROVIDER_ENDPOINTS.groq, groq.key, groq.model),
@@ -315,6 +353,27 @@ const DevDashboard = () => {
         }
     };
 
+    // Update API key
+    const updateApiKey = async () => {
+        if (!editingKey?.name?.trim() || !editingKey?.apiKey?.trim()) return;
+        try {
+            const keyRef = doc(db, 'apiKeys', editingKey.id);
+            await updateDoc(keyRef, {
+                name: editingKey.name,
+                email: editingKey.email || '',
+                provider: editingKey.provider,
+                model: editingKey.model || (providerModels[editingKey.provider]?.[0]) || '',
+                apiKey: editingKey.apiKey,
+            });
+            setApiKeys(prev => prev.map(k => k.id === editingKey.id ? { ...k, ...editingKey } : k));
+            setShowEditKeyModal(false);
+            setEditingKey(null);
+            setEditShowKeyValue(false);
+        } catch (error) {
+            console.error('Error updating API key:', error);
+        }
+    };
+
     // Save provider models to Firestore
     const saveProviderModels = async (provider, models) => {
         try {
@@ -327,7 +386,9 @@ const DevDashboard = () => {
     };
 
     // Check single API (for retry)
-    const checkSingleApi = async (apiName) => {
+    const checkSingleApi = async (apiName, overrideKeys) => {
+        const effectiveKeys = overrideKeys ?? apiKeys;
+
         const envKeys = {
             groq: import.meta.env.VITE_GROQ_API_KEY,
             openrouter: import.meta.env.VITE_OPENROUTER_API_KEY,
@@ -337,10 +398,10 @@ const DevDashboard = () => {
         let key = envKeys[apiName];
         let model = null;
         if (selectedId) {
-            const found = apiKeys.find(k => k.id === selectedId);
+            const found = effectiveKeys.find(k => k.id === selectedId);
             if (found) { key = found.apiKey; model = found.model; }
         } else {
-            const providerKeys = apiKeys.filter(k => k.provider === apiName);
+            const providerKeys = effectiveKeys.filter(k => k.provider === apiName);
             if (providerKeys.length > 0) { key = providerKeys[0].apiKey; model = providerKeys[0].model; }
         }
         const result = await checkApiHealth(apiName, PROVIDER_ENDPOINTS[apiName], key, model);
@@ -570,7 +631,11 @@ const DevDashboard = () => {
                                     <div className="mt-3 pt-3 border-t border-gray-600">
                                         <select
                                             value={selectedKeyPerProvider[api] || ''}
-                                            onChange={(e) => setSelectedKeyPerProvider(prev => ({ ...prev, [api]: e.target.value }))}
+                                            onChange={(e) => {
+                                                const updated = { ...selectedKeyPerProvider, [api]: e.target.value };
+                                                setSelectedKeyPerProvider(updated);
+                                                saveSelection(updated);
+                                            }}
                                             className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white"
                                         >
                                             <option value="">Default (env var)</option>
@@ -743,6 +808,106 @@ const DevDashboard = () => {
                 </div>
             )}
 
+            {/* Edit API Key Modal */}
+            {showEditKeyModal && editingKey && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold text-white">Edit API Key</h3>
+                            <button onClick={() => { setShowEditKeyModal(false); setEditShowKeyValue(false); }} className="text-gray-400 hover:text-white">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Provider</label>
+                                <select
+                                    value={editingKey.provider}
+                                    onChange={(e) => setEditingKey({ ...editingKey, provider: e.target.value, model: '' })}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="groq">Groq</option>
+                                    <option value="openrouter">OpenRouter</option>
+                                    <option value="cerebras">Cerebras</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Model</label>
+                                <select
+                                    value={editingKey.model || ''}
+                                    onChange={(e) => setEditingKey({ ...editingKey, model: e.target.value })}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Default ({(providerModels[editingKey.provider] || [])[0] || 'auto'})</option>
+                                    {(providerModels[editingKey.provider] || []).map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={editingKey.name}
+                                    onChange={(e) => setEditingKey({ ...editingKey, name: e.target.value })}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Email (optional)</label>
+                                <input
+                                    type="email"
+                                    value={editingKey.email || ''}
+                                    onChange={(e) => setEditingKey({ ...editingKey, email: e.target.value })}
+                                    placeholder="user@example.com"
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">API Key</label>
+                                <div className="relative">
+                                    <input
+                                        type={editShowKeyValue ? 'text' : 'password'}
+                                        value={editingKey.apiKey}
+                                        onChange={(e) => setEditingKey({ ...editingKey, apiKey: e.target.value })}
+                                        placeholder="sk-..."
+                                        className="w-full px-3 py-2 pr-10 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditShowKeyValue(!editShowKeyValue)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                                    >
+                                        {editShowKeyValue ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={updateApiKey}
+                                disabled={!editingKey.name?.trim() || !editingKey.apiKey?.trim()}
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Save Changes
+                            </button>
+                            <button
+                                onClick={() => { setShowEditKeyModal(false); setEditShowKeyValue(false); }}
+                                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Manage Models Modal */}
             {showModelsModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -840,6 +1005,18 @@ const DevDashboard = () => {
                                         {key.email && <span>• {key.email}</span>}
                                     </p>
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        setEditingKey({ ...key });
+                                        setShowEditKeyModal(true);
+                                        setEditShowKeyValue(false);
+                                    }}
+                                    className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-lg transition-colors ml-1 flex-shrink-0"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
                                 <button
                                     onClick={() => deleteApiKey(key.id)}
                                     className="p-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors ml-2 flex-shrink-0"

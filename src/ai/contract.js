@@ -1,15 +1,12 @@
 /**
  * Generate a formal contract from project data
+ * Uses shared callAI utility with automatic provider fallback
  * @param {Object} projectData - Project data from Firestore
  * @returns {Promise<Object>} - Formal contract object
  */
+import { callAIJson } from './callAI';
+
 export const generateContract = async (projectData) => {
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('Groq API key not configured. Please set VITE_GROQ_API_KEY in .env');
-    }
-
     const clientName = projectData.clientName || 'Client';
     const businessName = projectData.businessName || 'Business';
     const email = projectData.email || 'N/A';
@@ -87,50 +84,9 @@ Return this exact JSON structure:
 }`;
 
     try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                max_tokens: 4096,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt,
-                    },
-                ],
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.choices || !data.choices[0]) {
-            throw new Error('Invalid response from Groq API');
-        }
-
-        const content = data.choices[0].message.content;
-
-        // Parse the JSON response
-        try {
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                throw new Error('No JSON found in response');
-            }
-            return JSON.parse(jsonMatch[0]);
-        } catch (parseError) {
-            console.error('Failed to parse AI response:', parseError);
-            throw new Error('Failed to parse AI response as JSON');
-        }
+        return await callAIJson(prompt, { max_tokens: 4096 });
     } catch (error) {
-        console.error('Groq API Error:', error);
+        console.error('AI contract generation failed:', error);
         throw new Error(`Contract generation failed: ${error.message}`);
     }
 };

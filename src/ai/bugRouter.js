@@ -1,16 +1,12 @@
 /**
  * Bug Router - AI-powered bug classification and analysis
  * Routes bugs to the appropriate AI based on type
+ * Uses shared callAI utility with automatic provider fallback
  */
+import { callAI, callAIJson } from './callAI';
 
-// Classify bug type using Groq
+// Classify bug type using AI with fallback
 export const classifyBug = async (bugReport) => {
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('Groq API key not configured. Please set VITE_GROQ_API_KEY in .env');
-    }
-
     const prompt = `You are a bug classification expert. Analyze this bug report and classify it into one of these categories:
 - "code" - Logic errors, functionality not working, crashes, data issues
 - "ui" - Visual issues, layout problems, styling, responsiveness, colors
@@ -32,45 +28,15 @@ Return JSON only:
 }`;
 
     try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                max_tokens: 256,
-                messages: [{ role: 'user', content: prompt }],
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        const content = data.choices[0]?.message?.content;
-
-        const jsonMatch = content?.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            return { bugType: 'unclear', confidence: 0.5, reasoning: 'Could not classify bug' };
-        }
-        return JSON.parse(jsonMatch[0]);
+        return await callAIJson(prompt, { max_tokens: 256 });
     } catch (error) {
         console.error('Classification error:', error);
         return { bugType: 'unclear', confidence: 0.5, reasoning: `Classification failed: ${error.message}` };
     }
 };
 
-// Analyze bug using Groq (for code bugs)
+// Analyze bug using AI with fallback (for code bugs)
 const analyzeWithGroq = async (bugReport) => {
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('Groq API key not configured');
-    }
-
     const prompt = `You are a senior software developer analyzing a bug report. Provide detailed analysis.
 
 Bug Report:
@@ -93,41 +59,15 @@ Analyze and return JSON:
   "pricingCategory": "minor|medium|major|critical"
 }`;
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            max_tokens: 1024,
-            messages: [{ role: 'user', content: prompt }],
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Groq API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-    const jsonMatch = content?.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-        throw new Error('Could not parse AI response');
-    }
+    // No longer Groq-specific — uses fallback chain
+    const content = await callAI(prompt, { max_tokens: 1024 });
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not parse AI response');
     return JSON.parse(jsonMatch[0]);
 };
 
-// Analyze bug using OpenRouter Gemini Flash (for UI bugs)
+// Analyze bug using AI with fallback (for UI bugs)
 const analyzeWithOpenRouter = async (bugReport) => {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('OpenRouter API key not configured. Please set VITE_OPENROUTER_API_KEY in .env');
-    }
-
     const prompt = `You are a UI/UX expert analyzing a bug report. Provide detailed analysis.
 
 Bug Report:
@@ -150,51 +90,15 @@ Analyze and return JSON:
   "pricingCategory": "minor|medium|major|critical"
 }`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': window.location.origin,
-        },
-        body: JSON.stringify({
-            model: 'google/gemini-flash-1.5',
-            max_tokens: 1024,
-            messages: [{ role: 'user', content: prompt }],
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`OpenRouter API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-    const jsonMatch = content?.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-        throw new Error('Could not parse AI response');
-    }
+    // Now routes through shared fallback utility
+    const content = await callAI(prompt, { max_tokens: 1024 });
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not parse AI response');
     return JSON.parse(jsonMatch[0]);
 };
 
-// Fallback analysis using OpenRouter free model
+// Fallback analysis using AI with fallback
 const fallbackAnalysis = async (bugReport) => {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-        // Return basic analysis without AI
-        return {
-            severity: 'medium',
-            summary: 'Analysis pending - API key not configured',
-            rootCause: 'Could not analyze - please configure VITE_OPENROUTER_API_KEY',
-            suggestedFix: 'Manual analysis required',
-            affectedFiles: [],
-            estimatedTime: 'To be determined',
-            pricingCategory: 'medium'
-        };
-    }
-
     const prompt = `Analyze this bug report and return JSON:
 
 Title: ${bugReport.title}
@@ -213,31 +117,7 @@ Return:
 }`;
 
     try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: 'meta-llama/llama-3.2-3b-instruct:free',
-                max_tokens: 512,
-                messages: [{ role: 'user', content: prompt }],
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Fallback API failed');
-        }
-
-        const data = await response.json();
-        const content = data.choices[0]?.message?.content;
-        const jsonMatch = content?.match(/\{[\s\S]*\}/);
-
-        if (!jsonMatch) {
-            throw new Error('Could not parse fallback response');
-        }
-        return JSON.parse(jsonMatch[0]);
+        return await callAIJson(prompt, { max_tokens: 512 });
     } catch (error) {
         console.error('Fallback analysis error:', error);
         return {
@@ -293,12 +173,12 @@ export const analyzeBug = async (bugReport) => {
 
     try {
         if (bugType === 'code') {
-            // Route to Groq for code analysis
-            console.log('Routing to Groq for code analysis...');
+            // Route to AI for code analysis
+            console.log('Routing to AI for code analysis...');
             analysis = await analyzeWithGroq(bugReport);
         } else if (bugType === 'ui') {
-            // Route to OpenRouter Gemini for UI analysis
-            console.log('Routing to OpenRouter for UI analysis...');
+            // Route to AI for UI analysis
+            console.log('Routing to AI for UI analysis...');
             analysis = await analyzeWithOpenRouter(bugReport);
         } else {
             // Unclear - run both and merge

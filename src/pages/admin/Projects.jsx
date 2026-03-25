@@ -5,6 +5,7 @@ import { db } from '../../firebase/config';
 import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
+import { callAIJson } from '../../ai/callAI';
 
 const Projects = () => {
   const { showToast } = useToast();
@@ -268,56 +269,11 @@ const Projects = () => {
 
       const projectInfo = `Client: ${project.clientName}\nBusiness: ${project.businessName}\nBusiness Type: ${project.businessType}\nProject Type: ${ai.projectType}\nServices Needed: ${project.servicesNeeded?.join(', ')}\nDescription: ${project.projectDescription}\nComplexity: ${ai.complexity}\nEstimated Days: ${ai.estimatedDays}\nTechnologies: ${ai.technologiesNeeded?.join(', ')}\nScope: ${ai.scopeSummary}`;
 
-      const requestBody = {
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert web developer. Always respond with valid JSON only. No markdown, no backticks, no extra text.'
-          },
-          {
-            role: 'user',
-            content: `Generate a complete technical project plan based on this project:\n\n${projectInfo}\n\nIMPORTANT: Always use this tech stack only:\n- Frontend: React, TailwindCSS, JavaScript\n- Backend: Firebase Functions (not PHP)\n- Database: Firebase Firestore\n- Hosting: Vercel\nNever recommend PHP, MySQL, or Laravel.\n\nReturn this JSON structure:\n{\n  projectName: (string - suggested repo name, lowercase-with-dashes),\n  overview: (string - 3-4 sentence project overview),\n  techStack: {\n    frontend: (array of strings),\n    backend: (array of strings),\n    database: (array of strings),\n    hosting: (array of strings)\n  },\n  folderStructure: (string - complete folder tree as text),\n  databaseSchema: (array of objects - collection, fields[], description),\n  pages: (array of objects - name, path, description, components[]),\n  features: (array of objects - name, description, priority),\n  kiloCodePrompts: (array of objects - step, title, prompt),\n  deploymentChecklist: (array of strings),\n  estimatedHours: (number),\n  milestones: (array of objects - name, description, estimatedDays)\n}`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      };
+      const prompt = `Generate a complete technical project plan based on this project:\n\n${projectInfo}\n\nIMPORTANT: Always use this tech stack only:\n- Frontend: React, TailwindCSS, JavaScript\n- Backend: Firebase Functions (not PHP)\n- Database: Firebase Firestore\n- Hosting: Vercel\nNever recommend PHP, MySQL, or Laravel.\n\nReturn this JSON structure:\n{\n  projectName: (string - suggested repo name, lowercase-with-dashes),\n  overview: (string - 3-4 sentence project overview),\n  techStack: {\n    frontend: (array of strings),\n    backend: (array of strings),\n    database: (array of strings),\n    hosting: (array of strings)\n  },\n  folderStructure: (string - complete folder tree as text),\n  databaseSchema: (array of objects - collection, fields[], description),\n  pages: (array of objects - name, path, description, components[]),\n  features: (array of objects - name, description, priority),\n  kiloCodePrompts: (array of objects - step, title, prompt),\n  deploymentChecklist: (array of strings),\n  estimatedHours: (number),\n  milestones: (array of objects - name, description, estimatedDays)\n}`;
 
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('Calling AI with prompt...');
 
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log('Groq error full:', JSON.stringify(errorData, null, 2));
-        throw new Error('Failed to generate plan');
-      }
-
-      const data = await response.json();
-      const planText = data.choices[0].message.content;
-
-      // Parse JSON from response
-      let projectPlan;
-      try {
-        // Extract JSON from the response (in case there's extra text)
-        const jsonMatch = planText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          projectPlan = JSON.parse(jsonMatch[0]);
-        } else {
-          projectPlan = JSON.parse(planText);
-        }
-      } catch (parseErr) {
-        console.error('Error parsing plan JSON:', parseErr);
-        throw new Error('Failed to parse generated plan');
-      }
+      const projectPlan = await callAIJson(prompt, { max_tokens: 4000 });
 
       // Save to Firestore
       const projectRef = doc(db, 'projects', selectedProject.id);
