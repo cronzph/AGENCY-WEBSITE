@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTi
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
 import { callAIJson } from '../../ai/callAI';
+import { generateProposal } from '../../utils/proposalGenerator';
 
 const Projects = () => {
   const { showToast } = useToast();
@@ -13,6 +14,7 @@ const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSending, setIsSending] = useState(null);
+  const [generatingId, setGeneratingId] = useState(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
@@ -164,6 +166,24 @@ const Projects = () => {
       showToast('Failed to copy link. Please try again.', 'error');
     } finally {
       setIsSending(null);
+    }
+  };
+
+  const handleGenerateProposal = async (project) => {
+    setGeneratingId(project.id);
+    try {
+      const proposalData = await generateProposal(project);
+      await updateDoc(doc(db, 'projects', project.id), {
+        proposalData,
+        status: 'proposal_sent',
+        proposalGeneratedAt: new Date().toISOString()
+      });
+      showToast('Proposal generated successfully!', 'success');
+    } catch (err) {
+      console.error('Proposal generation failed:', err);
+      showToast('Proposal generation failed', 'error');
+    } finally {
+      setGeneratingId(null);
     }
   };
 
@@ -473,7 +493,9 @@ const Projects = () => {
       proposal_accepted: 'bg-violet-500',
       awaiting_payment: 'bg-orange-500',
       payment_submitted: 'bg-yellow-500',
+      payment_confirmed: 'bg-green-500',
       in_progress: 'bg-purple-500',
+      discovery_completed: 'bg-teal-500',
       planning: 'bg-cyan-500',
       building: 'bg-purple-600',
       for_review: 'bg-indigo-600',
@@ -687,6 +709,11 @@ const Projects = () => {
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => setSelectedProject(project)} className="px-3 py-1.5 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded-lg">View</button>
                     {project.status === 'assessed' && (
+                      <button onClick={() => handleGenerateProposal(project)} disabled={generatingId === project.id} className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-50">
+                        {generatingId === project.id ? 'Generating...' : 'Generate Proposal'}
+                      </button>
+                    )}
+                    {project.status === 'assessed' && (
                       <button onClick={() => handleSendProposal(project.id)} disabled={isSending === project.id} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50">
                         {isSending === project.id ? '...' : 'Send Proposal'}
                       </button>
@@ -858,6 +885,15 @@ const Projects = () => {
                   </button>
                   {project.status === 'assessed' && (
                     <button
+                      onClick={() => handleGenerateProposal(project)}
+                      disabled={generatingId === project.id}
+                      className="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded disabled:opacity-50"
+                    >
+                      {generatingId === project.id ? '...' : 'Gen Prop'}
+                    </button>
+                  )}
+                  {project.status === 'assessed' && (
+                    <button
                       onClick={() => handleSendProposal(project.id)}
                       disabled={isSending === project.id}
                       className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
@@ -960,31 +996,56 @@ const Projects = () => {
             <div className="p-6 space-y-6">
               {/* Current Status */}
               <div className="bg-gray-700/50 rounded-lg p-4">
-                {/* Progress Stepper */}
+                {/* Progress Stepper — Grouped into major phases */}
                 <div className="mb-4">
                   <p className="text-gray-400 text-xs mb-2">Project Progress</p>
-                  <div className="flex items-center justify-between overflow-x-auto pb-2">
-                    {statusOrder.map((step, idx) => (
-                      <div key={step} className="flex items-center">
-                        <div className="flex flex-col items-center">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500 text-white' :
-                            getStepStatus(selectedProject.status, step) === 'current' ? 'bg-blue-500 text-white' :
-                              'bg-gray-600 text-gray-400'
-                            }`}>
-                            {getStepStatus(selectedProject.status, step) === 'completed' ? '✓' : idx + 1}
+                  {(() => {
+                    const phases = [
+                      { label: 'Inquiry', statuses: ['inquiry', 'assessed'] },
+                      { label: 'Proposal', statuses: ['proposal_sent', 'proposal_accepted'] },
+                      { label: 'Payment', statuses: ['awaiting_payment', 'payment_submitted', 'payment_confirmed'] },
+                      { label: 'Discovery', statuses: ['in_progress', 'discovery_completed'] },
+                      { label: 'Planning', statuses: ['planning'] },
+                      { label: 'Building', statuses: ['building'] },
+                      { label: 'Review', statuses: ['for_review'] },
+                      { label: 'Delivered', statuses: ['delivered', 'completed'] },
+                    ];
+                    const currentIdx = statusOrder.indexOf(selectedProject.status);
+                    const getPhaseStatus = (phase) => {
+                      const phaseMinIdx = Math.min(...phase.statuses.map(s => statusOrder.indexOf(s)).filter(i => i >= 0));
+                      const phaseMaxIdx = Math.max(...phase.statuses.map(s => statusOrder.indexOf(s)).filter(i => i >= 0));
+                      if (currentIdx > phaseMaxIdx) return 'completed';
+                      if (currentIdx >= phaseMinIdx && currentIdx <= phaseMaxIdx) return 'current';
+                      return 'pending';
+                    };
+                    return (
+                      <div className="flex items-center justify-between overflow-x-auto pb-2">
+                        {phases.map((phase, idx) => (
+                          <div key={phase.label} className="flex items-center">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                getPhaseStatus(phase) === 'completed' ? 'bg-green-500 text-white' :
+                                getPhaseStatus(phase) === 'current' ? 'bg-blue-500 text-white' :
+                                'bg-gray-600 text-gray-400'
+                              }`}>
+                                {getPhaseStatus(phase) === 'completed' ? '✓' : idx + 1}
+                              </div>
+                              <span className={`text-xs mt-1 whitespace-nowrap ${
+                                getPhaseStatus(phase) === 'current' ? 'text-blue-400 font-medium' : 'text-gray-500'
+                              }`}>
+                                {phase.label}
+                              </span>
+                            </div>
+                            {idx < phases.length - 1 && (
+                              <div className={`w-6 sm:w-10 h-0.5 mx-1 ${
+                                getPhaseStatus(phase) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
+                              }`}></div>
+                            )}
                           </div>
-                          <span className={`text-xs mt-1 whitespace-nowrap ${getStepStatus(selectedProject.status, step) === 'current' ? 'text-blue-400' : 'text-gray-500'
-                            }`}>
-                            {step.replace('_', ' ')}
-                          </span>
-                        </div>
-                        {idx < statusOrder.length - 1 && (
-                          <div className={`w-4 sm:w-8 h-0.5 mx-1 ${getStepStatus(selectedProject.status, step) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
-                            }`}></div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1194,10 +1255,28 @@ const Projects = () => {
 
                   {selectedProject.status === 'proposal_accepted' && (
                     <button
+                      onClick={() => handleStatusChange(selectedProject.id, 'awaiting_payment')}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Request Payment
+                    </button>
+                  )}
+
+                  {selectedProject.status === 'payment_submitted' && (
+                    <button
+                      onClick={() => handleStatusChange(selectedProject.id, 'payment_confirmed')}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      ✅ Confirm Payment
+                    </button>
+                  )}
+
+                  {selectedProject.status === 'payment_confirmed' && (
+                    <button
                       onClick={() => handleStatusChange(selectedProject.id, 'in_progress')}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
-                      Mark as In Progress
+                      Start Work
                     </button>
                   )}
 

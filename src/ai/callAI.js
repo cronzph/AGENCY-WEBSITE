@@ -151,11 +151,74 @@ export const callAI = async (prompt, options = {}) => {
 };
 
 /**
+ * Sanitize AI-returned JSON string before parsing.
+ * Fixes: markdown fences, unescaped control characters inside string values.
+ */
+const sanitizeJsonString = (raw) => {
+    // 1. Strip markdown code fences (```json ... ``` or ``` ... ```)
+    let cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '');
+
+    // 2. Extract the outermost JSON object
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('No JSON object found in AI response');
+    cleaned = cleaned.slice(start, end + 1);
+
+    // 3. Fix unescaped newlines/tabs/carriage-returns inside JSON string values
+    //    Walk char by char tracking if we're inside a string
+    let result = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (escaped) {
+            result += ch;
+            escaped = false;
+            continue;
+        }
+        if (ch === '\\') {
+            result += ch;
+            escaped = true;
+            continue;
+        }
+        if (ch === '"') {
+            inString = !inString;
+            result += ch;
+            continue;
+        }
+        if (inString) {
+            // Replace raw control chars with escaped versions
+            if (ch === '\n') { result += '\\n'; continue; }
+            if (ch === '\r') { result += '\\r'; continue; }
+            if (ch === '\t') { result += '\\t'; continue; }
+        }
+        result += ch;
+    }
+    return result;
+};
+
+/**
  * callAIJson — Same as callAI but automatically parses the first JSON block from the response.
+ * Includes robust sanitization and a self-repair retry if JSON is still invalid.
  */
 export const callAIJson = async (prompt, options = {}) => {
     const content = await callAI(prompt, options);
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in AI response');
-    return JSON.parse(jsonMatch[0]);
+
+    try {
+        const sanitized = sanitizeJsonString(content);
+        return JSON.parse(sanitized);
+    } catch (firstErr) {
+        console.warn('[callAIJson] First parse failed, attempting self-repair:', firstErr.message);
+
+        // Ask the AI to fix its own broken JSON output
+        const repairPrompt = `The following JSON is malformed. Fix it so it is valid JSON. Return ONLY the fixed JSON with no markdown, no explanation, no extra text.\n\nBroken JSON:\n${content.slice(0, 3000)}`;
+        try {
+            const fixed = await callAI(repairPrompt, { ...options, max_tokens: Math.min(options.max_tokens || 1024, 4096) });
+            const sanitized2 = sanitizeJsonString(fixed);
+            return JSON.parse(sanitized2);
+        } catch (secondErr) {
+            console.error('[callAIJson] Self-repair also failed:', secondErr.message);
+            throw new Error(`JSON parse failed after repair attempt: ${secondErr.message}`);
+        }
+    }
 };

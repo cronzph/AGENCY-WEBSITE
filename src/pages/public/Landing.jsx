@@ -196,6 +196,9 @@ const Landing = () => {
               <button onClick={() => scrollToSection('quick-fix')} className="text-gray-300 hover:text-white transition-colors">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="text-gray-300 hover:text-white transition-colors">Why Us</button>
               <button onClick={() => scrollToSection('portfolio')} className="text-gray-300 hover:text-white transition-colors">Portfolio</button>
+              <Link to="/portal/login" className="px-5 py-2.5 text-gray-300 hover:text-white transition-colors">
+                Client Portal
+              </Link>
               <Link to="/inquiry" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
                 Get Started
               </Link>
@@ -224,6 +227,9 @@ const Landing = () => {
               <button onClick={() => scrollToSection('quick-fix')} className="block w-full text-left text-gray-300 hover:text-white py-2">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="block w-full text-left text-gray-300 hover:text-white py-2">Why Us</button>
               <button onClick={() => scrollToSection('portfolio')} className="block w-full text-left text-gray-300 hover:text-white py-2">Portfolio</button>
+              <Link to="/portal/login" className="block px-4 py-2 text-gray-300 hover:text-white transition-colors">
+                Client Portal
+              </Link>
               <Link to="/inquiry" className="block w-full text-center px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">
                 Get Started
               </Link>
@@ -255,9 +261,9 @@ const Landing = () => {
             <Link to="/inquiry" className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
               Start Your Project
             </Link>
-            <button onClick={() => scrollToSection('services')} className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold text-lg border border-gray-700 transition-all">
-              View Our Work
-            </button>
+            <Link to="/portal/login" className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold text-lg border border-gray-700 transition-all">
+              Track Your Project
+            </Link>
           </div>
         </div>
       </section>
@@ -382,8 +388,8 @@ const Landing = () => {
             <button
               onClick={() => setPortfolioFilter('all')}
               className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
             >
               All
@@ -393,8 +399,8 @@ const Landing = () => {
                 key={type}
                 onClick={() => setPortfolioFilter(type)}
                 className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === type
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
               >
                 {type}

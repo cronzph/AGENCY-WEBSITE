@@ -155,12 +155,20 @@ const ClientPortal = () => {
                             <span className="text-gray-400">| {clientData.email}</span>
                         )}
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            to="/inquiry"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+                        >
+                            + New Project
+                        </Link>
+                        <button
+                            onClick={handleLogout}
+                            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -190,8 +198,8 @@ const ClientPortal = () => {
                             </h2>
                             <p className="text-gray-400">{projectDetails.clientName}</p>
                             <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm ${projectDetails.status === 'delivered' || projectDetails.status === 'completed'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-blue-500/20 text-blue-400'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-blue-500/20 text-blue-400'
                                 }`}>
                                 {currentPhase}
                             </span>
@@ -212,8 +220,8 @@ const ClientPortal = () => {
                                         <div
                                             key={phase}
                                             className={`text-xs ${idx <= getStatusStep(projectDetails.status)
-                                                    ? 'text-blue-400'
-                                                    : 'text-gray-500'
+                                                ? 'text-blue-400'
+                                                : 'text-gray-500'
                                                 }`}
                                         >
                                             {phase}
@@ -386,8 +394,8 @@ const ClientPortal = () => {
                                                 <p className="text-gray-400 text-sm">{formatDate(bug.createdAt)}</p>
                                             </div>
                                             <span className={`px-2 py-1 rounded text-xs ${bug.status === 'fixed' ? 'bg-green-500/20 text-green-400' :
-                                                    bug.status === 'analyzed' ? 'bg-blue-500/20 text-blue-400' :
-                                                        'bg-yellow-500/20 text-yellow-400'
+                                                bug.status === 'analyzed' ? 'bg-blue-500/20 text-blue-400' :
+                                                    'bg-yellow-500/20 text-yellow-400'
                                                 }`}>
                                                 {bug.status}
                                             </span>

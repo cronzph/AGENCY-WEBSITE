@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { assessInquiry } from '../../ai/cerebras';
@@ -399,6 +399,12 @@ const Inquiry = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white">{agencyName}</h1>
           <p className="text-gray-400 mt-2">Tell us about your project</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Already have a project?{' '}
+            <Link to="/portal/login" className="text-blue-400 hover:text-blue-300 underline">
+              Track your progress here
+            </Link>
+          </p>
         </div>
 
         {/* Progress Steps */}
