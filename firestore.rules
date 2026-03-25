@@ -2,31 +2,73 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Settings - public read, no write
     match /settings/{document} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Projects - public create, no read/write
     match /projects/{projectId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if true;
+      allow delete: if false;
+
+      match /bugReports/{bugId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
+    }
+
+    match /payments/{paymentId} {
       allow create: if true;
       allow read: if true;
       allow update: if true;
       allow delete: if false;
     }
 
-    // Payments - public create, no read/write
-    match /payments/{paymentId} {
-      allow create: if true;
+    match /notifications/{notifId} {
       allow read: if true;
-      allow update: if false;
+      allow create: if true;
+      allow update: if true;
       allow delete: if false;
     }
 
-    // Notifications - no public access
-    match /notifications/{notifId} {
-      allow read, write: if false;
+    match /adminUsers/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /errorLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    match /billingRecords/{recordId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    match /portfolio/{itemId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    match /apiKeys/{keyId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /providerModels/{provider} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }
