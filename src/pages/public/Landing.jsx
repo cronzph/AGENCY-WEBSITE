@@ -116,55 +116,132 @@ const Landing = () => {
     { icon: '📊', title: 'Business Dashboard', desc: 'Real-time analytics and insights for smarter decisions' },
   ];
 
-  const pricingTiers = [
+  const buildTiers = [
+    {
+      icon: '🌱',
+      name: 'Simple',
+      price: '₱3,500 – ₱6,000',
+      label: 'One-time',
+      delivery: '5–10 days',
+      features: [
+        'Landing page / single-page site',
+        'Contact or inquiry form',
+        'Mobile responsive design',
+        'Basic SEO setup',
+      ],
+      payment: '50% down / 50% on delivery',
+    },
+    {
+      icon: '🔧',
+      name: 'Standard',
+      price: '₱8,000 – ₱40,000',
+      label: 'One-time',
+      delivery: '15–30 days',
+      features: [
+        'Multi-page website or web app',
+        'User authentication & roles',
+        'Admin dashboard',
+        'Basic reports & analytics',
+        'Database integration',
+      ],
+      payment: '50% down / 50% on delivery',
+      recommended: true,
+    },
+    {
+      icon: '⚙️',
+      name: 'Advanced',
+      price: '₱25,000 – ₱90,000',
+      label: 'One-time',
+      delivery: '30–60 days',
+      features: [
+        'Full business system',
+        'Multi-role access control',
+        'AI-powered features',
+        'Advanced analytics & reports',
+        'Third-party integrations',
+        'Real-time notifications',
+      ],
+      payment: '50% down / 50% on delivery',
+    },
+    {
+      icon: '🏢',
+      name: 'Enterprise',
+      price: '₱60,000+',
+      label: 'Custom quote',
+      delivery: '60+ days',
+      features: [
+        'Multi-system integration',
+        'Custom API development',
+        'Scalable architecture',
+        'Dedicated project manager',
+        'Priority build queue',
+        'Extended warranty',
+      ],
+      payment: 'Milestone-based payments',
+    },
+  ];
+
+  const scopePricing = [
+    { scope: 'Landing Page (1 page)', price: '₱3,500 – ₱6,000', delivery: '5–7 days', complexity: 'Simple' },
+    { scope: 'Multi-page Website', price: '₱8,000 – ₱18,000', delivery: '10–15 days', complexity: 'Standard' },
+    { scope: 'Booking / Appointment System', price: '₱10,000 – ₱22,000', delivery: '15–25 days', complexity: 'Standard' },
+    { scope: 'Inventory System', price: '₱12,000 – ₱30,000', delivery: '20–30 days', complexity: 'Standard–Advanced' },
+    { scope: 'POS System', price: '₱15,000 – ₱40,000', delivery: '20–40 days', complexity: 'Standard–Advanced' },
+    { scope: 'Custom Dashboard', price: '₱12,000 – ₱30,000', delivery: '15–30 days', complexity: 'Standard–Advanced' },
+    { scope: 'Payroll / HR System', price: '₱25,000 – ₱60,000', delivery: '30–50 days', complexity: 'Advanced' },
+    { scope: 'Mobile App (Hybrid)', price: '₱40,000 – ₱90,000', delivery: '40–60 days', complexity: 'Advanced' },
+    { scope: 'Full Custom System', price: '₱60,000+', delivery: '60+ days', complexity: 'Enterprise' },
+  ];
+
+  const maintenanceTiers = [
     {
       icon: '🌱',
       name: 'Starter',
-      price: '₱2,000-₱3,500/mo',
+      price: '₱2,000–₱3,500/mo',
       features: [
-        'Hosting & uptime',
+        'Hosting & uptime monitoring',
         'Critical bug fixes',
         '1 minor update/month',
-        'FB support (48hr)'
+        'FB support (48hr response)'
       ]
     },
     {
       icon: '🚀',
       name: 'Growth',
-      price: '₱5,000-₱8,000/mo',
+      price: '₱5,000–₱8,000/mo',
       features: [
         'Everything in Starter',
         '3 minor updates/month',
         '1 major update/quarter',
         '24hr support',
-        'Monthly analytics'
+        'Monthly analytics report'
       ],
       recommended: true
     },
     {
       icon: '💼',
       name: 'Business',
-      price: '₱15,000-₱25,000/mo',
+      price: '₱15,000–₱25,000/mo',
       features: [
         'Everything in Growth',
         'Unlimited minor updates',
         '2 major updates/month',
         '12hr priority support',
-        'AI features',
+        'AI features included',
         '1 new feature/month'
       ]
     },
     {
       icon: '🏢',
       name: 'Enterprise',
-      price: '₱30,000-₱50,000/mo',
+      price: '₱30,000–₱50,000/mo',
       features: [
         'Everything in Business',
         'Unlimited major updates',
-        '7-day support',
-        'Weekly reports',
+        '7-day support coverage',
+        'Weekly progress reports',
         'Features on request',
-        'DB backup'
+        'Database backup & recovery'
       ]
     },
   ];
@@ -255,7 +332,7 @@ const Landing = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-3xl mx-auto">
-            From websites to full business systems — we build custom digital solutions for Filipino businesses.
+            Build modern digital solutions for your business.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/inquiry" className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
@@ -265,6 +342,9 @@ const Landing = () => {
               Track Your Project
             </Link>
           </div>
+          <p className="mt-4 text-gray-400 text-sm">
+            One-time build. You own it. No monthly lock-in.
+          </p>
         </div>
       </section>
 
@@ -299,9 +379,9 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
             {[
               { step: 1, icon: '📝', title: 'Submit Inquiry', desc: "Tell us about your project via our simple form" },
-              { step: 2, icon: '📄', title: 'Get Proposal', desc: 'Receive a detailed proposal with pricing within 24 hours' },
-              { step: 3, icon: '💳', title: 'Make Payment', desc: 'Pay via GCash, Maya, or bank transfer' },
-              { step: 4, icon: '🚀', title: 'Get Delivered', desc: 'Your project gets built and deployed' },
+              { step: 2, icon: '📄', title: 'Get Build Proposal', desc: 'Receive a detailed build proposal with pricing within 24 hours' },
+              { step: 3, icon: '💳', title: 'Pay Build Fee', desc: 'Pay the build fee via GCash, Maya, or bank transfer' },
+              { step: 4, icon: '🚀', title: 'Get Delivered', desc: 'Your project gets built and delivered' },
             ].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4">
@@ -318,27 +398,48 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Build Pricing Section - PRIMARY */}
       <section id="pricing" className="py-20 bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4 text-white">Simple, Transparent Pricing</h2>
-          <p className="text-gray-300 text-center mb-12">Choose what works best for your business</p>
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 bg-blue-600/20 text-blue-400 text-sm font-semibold rounded-full mb-4">
+              💰 BUILD PRICING
+            </span>
+            <h2 className="text-4xl font-bold mb-4 text-white">Pay Once. Own It Forever.</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              One-time development fee — we build your system and deliver it to you. No monthly lock-in.
+            </p>
+          </div>
+
+          {/* Payment Split Banner */}
+          <div className="flex items-center justify-center gap-3 mb-10">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-full text-sm">
+              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+              <span className="text-gray-300">50% Down Payment</span>
+              <span className="text-gray-500">→</span>
+              <span className="text-gray-300">We Build</span>
+              <span className="text-gray-500">→</span>
+              <span className="text-gray-300">50% on Delivery</span>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {pricingTiers.map((tier, idx) => (
+            {buildTiers.map((tier, idx) => (
               <div
                 key={idx}
-                className={`relative bg-gray-800 border rounded-xl p-6 transition-all hover:transform hover:-translate-y-1 ${tier.recommended ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-700'}`}
+                className={`relative bg-gray-800 border rounded-xl p-6 transition-all hover:transform hover:-translate-y-1 duration-300 flex flex-col ${tier.recommended ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-700'}`}
               >
                 {tier.recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
-                    Recommended
+                    Most Popular
                   </div>
                 )}
-                <div className="text-4xl mb-4">{tier.icon}</div>
+                <div className="text-4xl mb-3">{tier.icon}</div>
                 <h3 className="text-xl font-bold mb-1 text-white">{tier.name}</h3>
-                <p className="text-2xl font-bold text-blue-400 mb-4">{tier.price}</p>
-                <ul className="space-y-2">
+                <p className="text-2xl font-bold text-blue-400 mb-1">{tier.price}</p>
+                <p className="text-xs text-gray-500 mb-1">{tier.label}</p>
+                <p className="text-xs text-gray-400 mb-4">⏱ {tier.delivery}</p>
+                <ul className="space-y-2 mb-6 flex-1">
                   {tier.features.map((feature, fIdx) => (
                     <li key={fIdx} className="text-gray-300 text-sm flex items-center gap-2">
                       <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -348,13 +449,66 @@ const Landing = () => {
                     </li>
                   ))}
                 </ul>
+                <p className="text-xs text-gray-500 mb-4 border-t border-gray-700 pt-3">{tier.payment}</p>
+                <Link to="/inquiry" className="block text-center px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium text-sm transition-all hover:scale-105">
+                  Start Project
+                </Link>
               </div>
             ))}
           </div>
 
-          <p className="text-center text-gray-300">
-            Or choose <span className="text-white font-semibold">Build Only</span> — one-time payment, no monthly fees
+          <p className="text-center text-gray-400 text-sm">
+            ✅ All builds include a <span className="text-white font-medium">30-day bug fix warranty</span> — free of charge.
           </p>
+        </div>
+      </section>
+
+      {/* Per-Scope Pricing Table */}
+      <section id="scope-pricing" className="py-20 bg-gray-950">
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Pricing Per Scope</h2>
+          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
+            See estimated build costs per project type. Exact pricing depends on features — submit an inquiry for a free detailed proposal.
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-900 border border-gray-700 rounded-xl">
+              <thead>
+                <tr className="bg-gray-800">
+                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Scope / Project Type</th>
+                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Price Range</th>
+                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Est. Delivery</th>
+                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Complexity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopePricing.map((item, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}>
+                    <td className="p-4 border-t border-gray-800 text-gray-200 font-medium">{item.scope}</td>
+                    <td className="p-4 border-t border-gray-800 text-blue-400 font-semibold">{item.price}</td>
+                    <td className="p-4 border-t border-gray-800 text-gray-300">{item.delivery}</td>
+                    <td className="p-4 border-t border-gray-800">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.complexity === 'Simple' ? 'bg-green-900/30 text-green-400' :
+                        item.complexity === 'Standard' ? 'bg-blue-900/30 text-blue-400' :
+                        item.complexity === 'Advanced' ? 'bg-purple-900/30 text-purple-400' :
+                        item.complexity === 'Enterprise' ? 'bg-orange-900/30 text-orange-400' :
+                        'bg-blue-900/30 text-blue-400'
+                      }`}>
+                        {item.complexity}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 text-center">
+            <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all hover:scale-105">
+              Get a Free Detailed Proposal
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -500,69 +654,92 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Build Only Section */}
-      <section id="build-only" className="py-20 bg-gray-800/50">
+      {/* Optional Maintenance Plans */}
+      <section id="maintenance" className="py-20 bg-gray-800/50">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4 text-white">Build Only Option</h2>
-          <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
-            One-time payment for clients who prefer to maintain their systems themselves
-          </p>
-
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-8">
-            <h3 className="text-2xl font-bold text-white mb-4">One-Time Payment Model</h3>
-            <p className="text-gray-300 mb-6">
-              Pay once for development and own the system outright. No monthly fees, no recurring costs.
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 bg-purple-600/20 text-purple-400 text-sm font-semibold rounded-full mb-4">
+              🔧 OPTIONAL ADD-ON
+            </span>
+            <h2 className="text-4xl font-bold mb-4 text-white">Maintenance & Support Plans</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              After your build is delivered, keep your system updated and supported with an optional monthly plan.
             </p>
+          </div>
 
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-white mb-2">Why SaaS is Recommended</h3>
-              <ul className="space-y-2 text-gray-300 list-disc pl-5">
-                <li>Continuous updates and improvements</li>
-                <li>Priority support when issues arise</li>
-                <li>Regular security patches and maintenance</li>
-                <li>Scalability as your business grows</li>
-                <li>Access to new features as they're developed</li>
-              </ul>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            {maintenanceTiers.map((tier, idx) => (
+              <div
+                key={idx}
+                className={`relative bg-gray-800 border rounded-xl p-5 transition-all hover:transform hover:-translate-y-1 duration-300 ${tier.recommended ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-gray-700'}`}
+              >
+                {tier.recommended && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
+                    Recommended
+                  </div>
+                )}
+                <div className="text-3xl mb-2">{tier.icon}</div>
+                <h3 className="text-lg font-bold mb-1 text-white">{tier.name}</h3>
+                <p className="text-xl font-bold text-purple-400 mb-4">{tier.price}</p>
+                <ul className="space-y-2">
+                  {tier.features.map((feature, fIdx) => (
+                    <li key={fIdx} className="text-gray-300 text-sm flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
 
-            <div className="mb-6">
-              <h3 className="text-xl font-bold text-white mb-2">Per-Issue Pricing (After 30-Day Warranty)</h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Issues fixed during the 30-day warranty period are FREE. After that:
-              </p>
-              <table className="w-full text-left text-gray-300">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 mb-6">
+            <h3 className="text-lg font-bold text-white mb-4">💡 No Maintenance Plan? Here's what fixes cost after the 30-day warranty:</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-gray-300 text-sm">
                 <thead>
                   <tr>
-                    <th className="p-3 border-b">Bug Type</th>
-                    <th className="p-3 border-b">Free Period</th>
-                    <th className="p-3 border-b">After 30 Days</th>
+                    <th className="p-3 border-b border-gray-700 text-white">Bug Type</th>
+                    <th className="p-3 border-b border-gray-700 text-white">Warranty (30 days)</th>
+                    <th className="p-3 border-b border-gray-700 text-white">After Warranty</th>
+                    <th className="p-3 border-b border-gray-700 text-white">With Plan</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="p-3 border-t">Minor (cosmetic)</td>
-                    <td className="p-3 border-t">30 days ✅</td>
-                    <td className="p-3 border-t">FREE always</td>
+                    <td className="p-3 border-t border-gray-800">Minor (cosmetic)</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-gray-800 text-yellow-400">FREE always</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t">Medium (broken feature)</td>
-                    <td className="p-3 border-t">30 days ✅</td>
-                    <td className="p-3 border-t">₱1,000-₱2,500</td>
+                    <td className="p-3 border-t border-gray-800">Medium (broken feature)</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-gray-800 text-red-400">₱1,000–₱2,500</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t">Major (core broken)</td>
-                    <td className="p-3 border-t">30 days ✅</td>
-                    <td className="p-3 border-t">₱2,500-₱5,000</td>
+                    <td className="p-3 border-t border-gray-800">Major (core broken)</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-gray-800 text-red-400">₱2,500–₱5,000</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t">Critical (system down)</td>
-                    <td className="p-3 border-t">30 days ✅</td>
-                    <td className="p-3 border-t">₱5,000+</td>
+                    <td className="p-3 border-t border-gray-800">Critical (system down)</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-gray-800 text-red-400">₱5,000+</td>
+                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+
+          <p className="text-center text-gray-400 text-sm">
+            No lock-in. Cancel anytime. Or choose <span className="text-white font-medium">Build Only</span> — you own everything, no recurring fees.
+          </p>
         </div>
       </section>
 
@@ -671,7 +848,7 @@ const Landing = () => {
       {/* Smart Tier Recommender */}
       <section id="tier-recommender" className="py-20 bg-gradient-to-r from-blue-900/30 to-purple-900/30">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-4 text-white">Find Your Perfect Plan</h2>
+          <h2 className="text-4xl font-bold text-center mb-4 text-white">Find Your Perfect Maintenance Plan</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
             Answer a few questions to get a personalized recommendation
           </p>
@@ -682,10 +859,10 @@ const Landing = () => {
                 <h3 className="text-xl font-bold text-white mb-4">What's your monthly business revenue?</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { value: 'below-50k', label: 'Below ₱50,000', recommended: 'Starter plan' },
-                    { value: '50k-200k', label: '₱50,000 - ₱200,000', recommended: 'Growth plan' },
-                    { value: '200k-500k', label: '₱200,000 - ₱500,000', recommended: 'Business plan' },
-                    { value: '500k-plus', label: '₱500,000+', recommended: 'Enterprise plan' },
+                    { value: 'below-50k', label: 'Below ₱50,000', recommended: 'Starter maintenance' },
+                    { value: '50k-200k', label: '₱50,000 - ₱200,000', recommended: 'Growth maintenance' },
+                    { value: '200k-500k', label: '₱200,000 - ₱500,000', recommended: 'Business maintenance' },
+                    { value: '500k-plus', label: '₱500,000+', recommended: 'Enterprise maintenance' },
                   ].map((option, idx) => (
                     <button
                       key={option.value}
@@ -711,7 +888,7 @@ const Landing = () => {
 
               {recommendedTier && (
                 <div className="text-center py-8 bg-gray-900 border border-gray-700 rounded-xl">
-                  <h3 className="text-2xl font-bold text-white mb-4">Your Recommended Plan</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4">Your Recommended Maintenance Plan</h3>
                   <div className="text-6xl mb-4">{recommendedTier.icon}</div>
                   <h3 className="text-xl font-bold text-blue-400 mb-2">{recommendedTier.name}</h3>
                   <p className="text-2xl font-bold text-white mb-4">{recommendedTier.price}</p>
@@ -738,8 +915,8 @@ const Landing = () => {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4 text-white">Ready to digitize your business?</h2>
-          <p className="text-xl text-gray-300 mb-8">Get started today — free consultation!</p>
+          <h2 className="text-4xl font-bold mb-4 text-white">Ready to build your system?</h2>
+          <p className="text-xl text-gray-300 mb-8">Get a free detailed proposal — no commitment, no monthly lock-in.</p>
           <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
             Start Your Project
           </Link>
