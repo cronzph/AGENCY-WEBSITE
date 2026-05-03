@@ -10,19 +10,17 @@ const Inquiry = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     // Section 1 - Personal Info
+    clientType: '', // 'business' or 'student'
     fullName: '',
     businessName: '',
+    studentProjectType: '', // 'Capstone Project' or 'School Activity'
     email: '',
     phone: '',
-    fbPage: '',
-    // Section 2 - Business Info
-    businessType: '',
-    monthlyIncome: '',
-    // Section 3 - Project Info
+    // Section 2 - Project Info
     services: [],
     projectDescription: '',
     timeline: '',
-    // Section 4 - Service Type & Budget
+    // Section 3 - Service Type & Budget
     paymentType: '',
     budgetRange: '',
     selectedTier: '',
@@ -35,7 +33,7 @@ const Inquiry = () => {
   const [errors, setErrors] = useState({});
   const [agencyName, setAgencyName] = useState('CronzPH');
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 3;
   const progressPercent = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
@@ -46,21 +44,7 @@ const Inquiry = () => {
     fetchAgencyName();
   }, []);
 
-  const businessTypes = [
-    'Restaurant/Food',
-    'Retail Shop',
-    'Service Business',
-    'Freelancer/Professional',
-    'Corporate',
-    'Other',
-  ];
 
-  const incomeBrackets = [
-    'Below ₱50,000',
-    '₱50,000 - ₱200,000',
-    '₱200,000 - ₱500,000',
-    '₱500,000+',
-  ];
 
   const servicesList = [
     'Website / Landing Page',
@@ -70,10 +54,14 @@ const Inquiry = () => {
     'Payroll / HR System',
     'POS System',
     'Custom Automation',
+    'Capstone Project',
+    'School Activity',
+    'Simple Fix',
     'Other',
   ];
 
   const timelines = [
+    'Rush (Less than 1 week)',
     '1-2 weeks',
     '3-4 weeks',
     '1-2 months',
@@ -123,10 +111,19 @@ const Inquiry = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    let updated = { ...formData, [name]: value };
     if (name === 'paymentType' && value === 'build-only') {
-      setFormData({ ...formData, paymentType: value, selectedTier: '' });
+      updated = { ...formData, paymentType: value, selectedTier: '' };
     }
+    // When switching client type, clear the irrelevant field
+    if (name === 'clientType') {
+      if (value === 'business') {
+        updated.studentProjectType = '';
+      } else if (value === 'student') {
+        updated.businessName = '';
+      }
+    }
+    setFormData(updated);
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
@@ -151,11 +148,17 @@ const Inquiry = () => {
     const newErrors = {};
 
     // Section 1 - Personal Info
+    if (!formData.clientType) {
+      newErrors.clientType = 'Please select if you are a Business Owner or Student';
+    }
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full Name is required';
     }
-    if (!formData.businessName.trim()) {
+    if (formData.clientType === 'business' && !formData.businessName.trim()) {
       newErrors.businessName = 'Business Name is required';
+    }
+    if (formData.clientType === 'student' && !formData.studentProjectType) {
+      newErrors.studentProjectType = 'Please select your project type';
     }
 
     // Email format validation
@@ -174,16 +177,12 @@ const Inquiry = () => {
       newErrors.phone = 'Enter a valid PH mobile number (e.g. 09XXXXXXXXX)';
     }
 
-    // Section 2 - Business Info
-    if (!formData.businessType) newErrors.businessType = 'Business Type is required';
-    if (!formData.monthlyIncome) newErrors.monthlyIncome = 'Monthly Income is required';
-
-    // Section 3 - Project Info
+    // Section 2 - Project Info
     if (formData.services.length === 0) newErrors.services = 'Select at least one service';
     if (!formData.projectDescription.trim()) newErrors.projectDescription = 'Project Description is required';
     if (!formData.timeline) newErrors.timeline = 'Preferred Timeline is required';
 
-    // Section 4 - Service Type & Budget
+    // Section 3 - Service Type & Budget
     if (!formData.paymentType) newErrors.paymentType = 'Payment Preference is required';
     if (!formData.budgetRange) newErrors.budgetRange = 'Budget Range is required';
     if (formData.paymentType === 'saas' && !formData.selectedTier) newErrors.selectedTier = 'Maintenance Tier is required';
@@ -196,12 +195,12 @@ const Inquiry = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^09\d{9}$/;
     return (
+      formData.clientType &&
       formData.fullName.trim() &&
-      formData.businessName.trim() &&
+      (formData.clientType !== 'business' || formData.businessName.trim()) &&
+      (formData.clientType !== 'student' || formData.studentProjectType) &&
       emailRegex.test(formData.email.trim()) &&
       phoneRegex.test(formData.phone.trim()) &&
-      formData.businessType &&
-      formData.monthlyIncome &&
       formData.services.length > 0 &&
       formData.projectDescription.trim() &&
       formData.timeline &&
@@ -218,24 +217,22 @@ const Inquiry = () => {
     const newErrors = {};
 
     if (step === 1) {
-      // Step 1: Personal Info - require name, email (valid format), phone
+      // Step 1: Personal Info
+      if (!formData.clientType) newErrors.clientType = 'Please select if you are a Business Owner or Student';
       if (!formData.fullName?.trim()) newErrors.fullName = 'Full Name is required';
-      if (!formData.businessName?.trim()) newErrors.businessName = 'Business Name is required';
+      if (formData.clientType === 'business' && !formData.businessName?.trim()) newErrors.businessName = 'Business Name is required';
+      if (formData.clientType === 'student' && !formData.studentProjectType) newErrors.studentProjectType = 'Please select your project type';
       if (!formData.email?.trim()) newErrors.email = 'Email is required';
       else if (!emailRegex.test(formData.email.trim())) newErrors.email = 'Please enter a valid email';
       if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
       else if (!phoneRegex.test(formData.phone.trim())) newErrors.phone = 'Please enter a valid phone (e.g., 09123456789)';
     } else if (step === 2) {
-      // Step 2: Business Info - require business name, industry/type
-      if (!formData.businessType) newErrors.businessType = 'Business Type is required';
-      if (!formData.monthlyIncome) newErrors.monthlyIncome = 'Monthly Revenue is required';
-    } else if (step === 3) {
-      // Step 3: Project Info - require services, description, timeline
+      // Step 2: Project Info
       if (formData.services.length === 0) newErrors.services = 'Select at least one service';
       if (!formData.projectDescription?.trim()) newErrors.projectDescription = 'Project Description is required';
       if (!formData.timeline) newErrors.timeline = 'Timeline is required';
-    } else if (step === 4) {
-      // Step 4: Service - require budget, payment type
+    } else if (step === 3) {
+      // Step 3: Service - require budget, payment type
       if (!formData.budgetRange) newErrors.budgetRange = 'Budget is required';
       if (!formData.paymentType) newErrors.paymentType = 'Payment Preference is required';
       if (formData.paymentType === 'saas' && !formData.selectedTier) newErrors.selectedTier = 'Please select a maintenance tier';
@@ -256,13 +253,12 @@ const Inquiry = () => {
     try {
       // Save inquiry to Firestore (sanitize all text inputs before saving)
       const docRef = await addDoc(collection(db, 'projects'), {
+        clientType: formData.clientType,
         clientName: sanitizeText(formData.fullName),
-        businessName: sanitizeText(formData.businessName),
+        businessName: formData.clientType === 'business' ? sanitizeText(formData.businessName) : '',
+        studentProjectType: formData.clientType === 'student' ? formData.studentProjectType : '',
         email: sanitizeText(formData.email),
         phone: sanitizeText(formData.phone),
-        fbLink: sanitizeText(formData.fbPage),
-        businessType: formData.businessType,
-        monthlyRevenue: formData.monthlyIncome,
         servicesNeeded: formData.services,
         projectDescription: sanitizeText(formData.projectDescription),
         preferredTimeline: formData.timeline,
@@ -283,12 +279,10 @@ const Inquiry = () => {
       // Try AI assessment
       try {
         const assessment = await assessInquiry({
-          businessType: formData.businessType,
           servicesNeeded: formData.services,
           projectDescription: formData.projectDescription,
           preferredTimeline: formData.timeline,
           paymentPreference: formData.paymentType,
-          monthlyRevenue: formData.monthlyIncome,
           budgetRange: formData.budgetRange,
           selectedTier: formData.selectedTier,
         });
@@ -306,13 +300,12 @@ const Inquiry = () => {
 
       // Clear the form
       setFormData({
+        clientType: '',
         fullName: '',
         businessName: '',
+        studentProjectType: '',
         email: '',
         phone: '',
-        fbPage: '',
-        businessType: '',
-        monthlyIncome: '',
         services: [],
         projectDescription: '',
         timeline: '',
@@ -334,11 +327,12 @@ const Inquiry = () => {
   // Reset form to step 1
   const resetForm = () => {
     setFormData({
+      clientType: '',
       fullName: '',
       businessName: '',
+      studentProjectType: '',
       email: '',
       phone: '',
-      fbPage: '',
       businessType: '',
       monthlyIncome: '',
       services: [],
@@ -410,7 +404,7 @@ const Inquiry = () => {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex justify-between mb-2">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3].map((step) => (
               <div key={step} className="flex flex-col items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${step < currentStep ? 'bg-green-500 text-white' :
                   step === currentStep ? 'bg-blue-600 text-white' :
@@ -419,7 +413,7 @@ const Inquiry = () => {
                   {step < currentStep ? '✓' : step}
                 </div>
                 <span className={`text-xs mt-1 hidden sm:block ${step === currentStep ? 'text-blue-400' : 'text-gray-500'}`}>
-                  {step === 1 ? 'Personal' : step === 2 ? 'Business' : step === 3 ? 'Project' : 'Service'}
+                  {step === 1 ? 'Personal' : step === 2 ? 'Project' : 'Service'}
                 </span>
               </div>
             ))}
@@ -443,6 +437,53 @@ const Inquiry = () => {
           {currentStep === 1 && (
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Personal Information</h2>
+
+              {/* Client Type Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  I am a... <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                    formData.clientType === 'business'
+                      ? 'bg-blue-600/20 border-blue-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="clientType"
+                      value="business"
+                      checked={formData.clientType === 'business'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-blue-500"
+                    />
+                    <div>
+                      <span className="font-medium">🏢 Business Owner</span>
+                      <p className="text-xs text-gray-400">I need a system for my business</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${
+                    formData.clientType === 'student'
+                      ? 'bg-purple-600/20 border-purple-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="clientType"
+                      value="student"
+                      checked={formData.clientType === 'student'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-purple-500"
+                    />
+                    <div>
+                      <span className="font-medium">🎓 Student</span>
+                      <p className="text-xs text-gray-400">I need help with a school project</p>
+                    </div>
+                  </label>
+                </div>
+                {errors.clientType && <p className="text-red-500 text-sm mt-1">{errors.clientType}</p>}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -458,19 +499,43 @@ const Inquiry = () => {
                   {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Business Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="businessName"
-                    value={formData.businessName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
-                </div>
+                {/* Business Name - only for Business Owners */}
+                {formData.clientType === 'business' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Business Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="businessName"
+                      value={formData.businessName}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Your business name"
+                    />
+                    {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
+                  </div>
+                )}
+
+                {/* Student Project Type - only for Students */}
+                {formData.clientType === 'student' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Project Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="studentProjectType"
+                      value={formData.studentProjectType}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select project type</option>
+                      <option value="Capstone Project">Capstone Project</option>
+                      <option value="School Activity">School Activity</option>
+                    </select>
+                    {errors.studentProjectType && <p className="text-red-500 text-sm mt-1">{errors.studentProjectType}</p>}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -499,73 +564,12 @@ const Inquiry = () => {
                   />
                   {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                 </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Facebook Page/Profile Link
-                  </label>
-                  <input
-                    type="text"
-                    name="fbPage"
-                    value={formData.fbPage}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://facebook.com/yourpage"
-                  />
-                </div>
               </div>
             </div>
           )}
 
-          {/* Section 2 - Business Info */}
+          {/* Section 2 - Project Info */}
           {currentStep === 2 && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Business Information</h2>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Business Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="businessType"
-                  value={formData.businessType}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Business Type</option>
-                  {businessTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                {errors.businessType && <p className="text-red-500 text-sm mt-1">{errors.businessType}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Monthly Business Revenue <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {incomeBrackets.map((bracket) => (
-                    <label key={bracket} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                      <input
-                        type="radio"
-                        name="monthlyIncome"
-                        value={bracket}
-                        checked={formData.monthlyIncome === bracket}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 text-blue-500"
-                      />
-                      <span className="text-white">{bracket}</span>
-                    </label>
-                  ))}
-                </div>
-                {errors.monthlyIncome && <p className="text-red-500 text-sm mt-1">{errors.monthlyIncome}</p>}
-              </div>
-            </div>
-          )}
-
-          {/* Section 3 - Project Info */}
-          {currentStep === 3 && (
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Project Information</h2>
 
@@ -624,8 +628,8 @@ const Inquiry = () => {
             </div>
           )}
 
-          {/* Section 4 - Service Type & Budget */}
-          {currentStep === 4 && (
+          {/* Section 3 - Service Type & Budget */}
+          {currentStep === 3 && (
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Service Type</h2>
 
