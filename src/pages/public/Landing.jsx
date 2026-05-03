@@ -488,13 +488,12 @@ const Landing = () => {
                     <td className="p-4 border-t border-gray-800 text-blue-400 font-semibold">{item.price}</td>
                     <td className="p-4 border-t border-gray-800 text-gray-300">{item.delivery}</td>
                     <td className="p-4 border-t border-gray-800">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        item.complexity === 'Simple' ? 'bg-green-900/30 text-green-400' :
-                        item.complexity === 'Standard' ? 'bg-blue-900/30 text-blue-400' :
-                        item.complexity === 'Advanced' ? 'bg-purple-900/30 text-purple-400' :
-                        item.complexity === 'Enterprise' ? 'bg-orange-900/30 text-orange-400' :
-                        'bg-blue-900/30 text-blue-400'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${item.complexity === 'Simple' ? 'bg-green-900/30 text-green-400' :
+                          item.complexity === 'Standard' ? 'bg-blue-900/30 text-blue-400' :
+                            item.complexity === 'Advanced' ? 'bg-purple-900/30 text-purple-400' :
+                              item.complexity === 'Enterprise' ? 'bg-orange-900/30 text-orange-400' :
+                                'bg-blue-900/30 text-blue-400'
+                        }`}>
                         {item.complexity}
                       </span>
                     </td>
@@ -943,7 +942,7 @@ const Landing = () => {
             </div>
             <div>
               <h4 className="font-semibold mb-4 text-white">Contact</h4>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+              <a href="https://www.facebook.com/cronzph/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M18.77,7.46H14.5v-1.9c0-.9.6-1.1,1-1.1h3V.5H14.17c-2.76,0-3.33,1.66-3.33,3.36v1.7H7.5v2.6h3.34v7.39h4.32v-7.39h3.22l.72-2.6Z" />
                 </svg>
