@@ -9,6 +9,10 @@ const ProtectedRoute = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Admin is logged in — clear any client portal session to prevent cross-redirect
+        localStorage.removeItem('clientPortal');
+      }
       setIsAuthenticated(!!user);
       setIsLoading(false);
     });
@@ -17,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
   }, []);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-400">Loading...</div>;
   }
 
   if (!isAuthenticated) {

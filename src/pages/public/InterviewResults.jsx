@@ -142,7 +142,7 @@ const InterviewResults = () => {
                                 {isCompleted
                                     ? `Completed on ${formatDate(interview.completedAt)}`
                                     : isScheduled
-                                        ? `Scheduled for ${formatDate(interview.scheduledDate) || 'TBD'}`
+                                        ? `Scheduled: ${interview.scheduledDateStr || formatDate(interview.scheduledAt) || 'TBD'}`
                                         : 'Date to be confirmed'
                                 }
                             </p>
@@ -218,12 +218,6 @@ const InterviewResults = () => {
                     </div>
                 </div>
 
-                {/* Back to Portal */}
-                <div className="text-center mt-8">
-                    <Link to="/portal" className="text-blue-400 hover:text-blue-300 transition-colors">
-                        ← Back to Client Portal
-                    </Link>
-                </div>
             </div>
         </div>
     );

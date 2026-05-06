@@ -39,6 +39,10 @@ const Projects = () => {
   });
   const [newTech, setNewTech] = useState('');
   const [newWarning, setNewWarning] = useState('');
+  const [docsDropdown, setDocsDropdown] = useState(null);
+  const [scheduleModal, setScheduleModal] = useState(null); // projectId being scheduled
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -151,6 +155,15 @@ const Projects = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Close documents dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (docsDropdown) setDocsDropdown(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [docsDropdown]);
 
   const handleSendProposal = async (projectId) => {
     setIsSending(projectId);
@@ -518,6 +531,167 @@ const Projects = () => {
     return `${services[0]} +${services.length - 1} more`;
   };
 
+  // Handle confirming interview schedule from modal
+  const handleConfirmSchedule = async (projectId) => {
+    if (!scheduleDate || !scheduleTime) {
+      showToast('Please pick a date and time.', 'error');
+      return;
+    }
+    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+    // Format date as "May 10, 2026" and time as "2:00 PM"
+    const dateLabel = scheduledAt.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeLabel = scheduledAt.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const scheduledDateStr = `${dateLabel} at ${timeLabel}`;
+    await handleStatusChange(projectId, 'interview_scheduled', {
+      interview: { status: 'scheduled', scheduledAt, scheduledDateStr }
+    });
+    // Refresh selectedProject if it's the same project
+    if (selectedProject?.id === projectId) {
+      const updatedSnap = await getDoc(doc(db, 'projects', projectId));
+      setSelectedProject({ id: updatedSnap.id, ...updatedSnap.data() });
+    }
+    setScheduleModal(null);
+    setScheduleDate('');
+    setScheduleTime('');
+  };
+
+  // Get the next action button based on project status
+  const getNextAction = (project) => {
+    switch (project.status) {
+      case 'inquiry':
+        return null; // Waiting for AI assessment
+      case 'assessed':
+        if (project.clientType === 'student') {
+          return {
+            label: 'Schedule Interview',
+            color: 'bg-amber-600 hover:bg-amber-500',
+            action: () => { setScheduleModal(project.id); setScheduleDate(''); setScheduleTime(''); },
+          };
+        }
+        if (!project.discovery?.completed) {
+          return {
+            label: 'Send Discovery',
+            color: 'bg-purple-600 hover:bg-purple-500',
+            action: () => handleSendDiscovery(project.id),
+            loading: isSending === project.id,
+          };
+        }
+        return null;
+      case 'discovery_completed':
+        return {
+          label: 'Schedule Interview',
+          color: 'bg-amber-600 hover:bg-amber-500',
+          action: () => { setScheduleModal(project.id); setScheduleDate(''); setScheduleTime(''); },
+        };
+      case 'interview_scheduled':
+        return {
+          label: 'Mark Interview Done',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'interview_done', { interview: { ...project.interview, status: 'completed', completedAt: new Date() } }),
+        };
+      case 'interview_done':
+        return {
+          label: 'Generate Proposal',
+          color: 'bg-indigo-600 hover:bg-indigo-500',
+          action: () => handleGenerateProposal(project),
+          loading: generatingId === project.id,
+        };
+      case 'proposal_sent':
+        return { label: 'Waiting for Client', color: 'bg-gray-600', action: null, disabled: true };
+      case 'proposal_accepted':
+        return {
+          label: 'Send Payment Link',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleSendPaymentLink(project.id),
+          loading: isSending === project.id,
+        };
+      case 'awaiting_payment':
+        return { label: 'Awaiting Payment', color: 'bg-orange-600', action: null, disabled: true };
+      case 'payment_submitted':
+        return {
+          label: 'Confirm Payment',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'payment_confirmed'),
+        };
+      case 'payment_confirmed':
+        return {
+          label: 'Start Work',
+          color: 'bg-purple-600 hover:bg-purple-500',
+          action: () => handleStatusChange(project.id, 'in_progress'),
+        };
+      case 'in_progress':
+        return {
+          label: 'Generate Plan',
+          color: 'bg-blue-600 hover:bg-blue-500',
+          action: () => { setSelectedProject(project); handleGenerateProjectPlan(); },
+          loading: isGeneratingPlan,
+        };
+      case 'planning':
+        return {
+          label: 'Start Building',
+          color: 'bg-purple-600 hover:bg-purple-500',
+          action: () => handleStatusChange(project.id, 'building'),
+        };
+      case 'building':
+        return {
+          label: 'Mark For Review',
+          color: 'bg-indigo-600 hover:bg-indigo-500',
+          action: () => handleStatusChange(project.id, 'for_review'),
+        };
+      case 'for_review':
+        return {
+          label: 'Mark Delivered',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'delivered'),
+        };
+      case 'delivered':
+        return {
+          label: 'Mark Completed',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'completed'),
+        };
+      case 'completed':
+        return { label: '✓ Completed', color: 'bg-green-700', action: null, disabled: true };
+      case 'cancelled':
+        return { label: '✗ Cancelled', color: 'bg-red-700', action: null, disabled: true };
+      default:
+        return null;
+    }
+  };
+
+  const proposalStatuses = ['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+  const contractStatuses = ['payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+  const paymentStatuses = ['awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+
+  const getProjectDocuments = (project) => {
+    const docs = [];
+    // Only show proposal if it has been sent
+    if (proposalStatuses.includes(project.status)) {
+      docs.push({ label: '📋 Proposal', link: `${window.location.origin}/proposal/${project.id}`, type: 'newtab' });
+    }
+    // Only show contract if payment confirmed or beyond
+    if (contractStatuses.includes(project.status)) {
+      docs.push({ label: '📝 Contract', link: `${window.location.origin}/contract/${project.id}`, type: 'newtab' });
+    }
+    // Only show payment if awaiting payment or beyond
+    if (paymentStatuses.includes(project.status)) {
+      docs.push({ label: '💳 Payment', link: `${window.location.origin}/payment/${project.id}`, type: 'newtab' });
+    }
+    // Discovery - only if completed
+    if (project.discovery?.completed) {
+      docs.push({ label: '🔍 Discovery', link: `/admin/projects/${project.id}/discovery`, type: 'route' });
+    }
+    // Project Plan - only if generated
+    if (project.projectPlan) {
+      docs.push({ label: '📐 Project Plan', link: `/admin/projects/${project.id}/plan`, type: 'route' });
+    }
+    // Bug Reports - always available (admin route)
+    docs.push({ label: '🐛 Bug Reports', link: `/admin/projects/${project.id}/bugs`, type: 'route' });
+    // Feature Request - copy link
+    docs.push({ label: '✨ Feature Req Link', link: `/feature-request/${project.id}`, type: 'copy' });
+    return docs;
+  };
+
   const getComplexityColor = (complexity) => {
     const colors = {
       low: 'text-green-400',
@@ -708,44 +882,56 @@ const Projects = () => {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-green-400 font-semibold">
-                      {project.aiAssessment?.suggestedPrice ? formatCurrency(project.aiAssessment.suggestedPrice) : project.budgetRange || '-'}
+                      {proposalStatuses.includes(project.status) && project.aiAssessment?.suggestedPrice
+                        ? formatCurrency(project.aiAssessment.suggestedPrice)
+                        : project.budgetRange || '-'}
                     </span>
                     <span className="text-gray-500 text-xs">{formatDate(project.createdAt)}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => setSelectedProject(project)} className="px-3 py-1.5 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded-lg">View</button>
-                    {/* Discovery first (non-students only) */}
-                    {project.status === 'assessed' && project.clientType !== 'student' && !project.discovery?.completed && (
-                      <button onClick={() => handleSendDiscovery(project.id)} disabled={isSending === project.id} className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded-lg disabled:opacity-50">
-                        {isSending === project.id ? '...' : 'Send Discovery'}
-                      </button>
-                    )}
-                    {project.discovery?.completed && (
-                      <Link to={`/admin/projects/${project.id}/discovery`} className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg">Discovery</Link>
-                    )}
-                    {/* Interview after discovery (or right away for students) */}
-                    {(project.status === 'discovery_completed' || (project.status === 'assessed' && project.clientType === 'student')) && (
-                      <button onClick={() => handleStatusChange(project.id, 'interview_scheduled', { interview: { status: 'scheduled', scheduledAt: new Date() } })} className="px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded-lg">
-                        Interview
-                      </button>
-                    )}
-                    {project.status === 'interview_scheduled' && (
-                      <button onClick={() => handleStatusChange(project.id, 'interview_done', { interview: { ...project.interview, status: 'completed', completedAt: new Date() } })} className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg">
-                        Done
-                      </button>
-                    )}
-                    {project.status === 'interview_done' && (
-                      <button onClick={() => handleGenerateProposal(project)} disabled={generatingId === project.id} className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-50">
-                        {generatingId === project.id ? '...' : 'Gen Prop'}
-                      </button>
-                    )}
-                    {project.status === 'interview_done' && (
-                      <button onClick={() => handleSendProposal(project.id)} disabled={isSending === project.id} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50">
-                        {isSending === project.id ? '...' : 'Send Proposal'}
-                      </button>
-                    )}
-                    <Link to={`/admin/projects/${project.id}/bugs`} className="px-3 py-1.5 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg">Bugs</Link>
+                    {/* Next Action Button */}
+                    {(() => {
+                      const nextAction = getNextAction(project);
+                      if (!nextAction) return null;
+                      return (
+                        <button
+                          onClick={nextAction.action}
+                          disabled={nextAction.disabled || nextAction.loading}
+                          className={`px-3 py-1.5 text-xs text-white rounded-lg disabled:opacity-50 whitespace-nowrap ${nextAction.color}`}
+                        >
+                          {nextAction.loading ? '...' : nextAction.label}
+                        </button>
+                      );
+                    })()}
+                    {/* View Documents */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDocsDropdown(docsDropdown === project.id ? null : project.id); }}
+                      className="px-3 py-1.5 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded-lg whitespace-nowrap"
+                    >
+                      📄 Documents
+                    </button>
                   </div>
+                  {/* Documents dropdown for mobile */}
+                  {docsDropdown === project.id && (
+                    <div className="mt-2 bg-gray-700 border border-gray-600 rounded-lg p-2">
+                      {getProjectDocuments(project).map((docItem, idx) => (
+                        docItem.type === 'route' ? (
+                          <Link key={idx} to={docItem.link} onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                            {docItem.label}
+                          </Link>
+                        ) : docItem.type === 'copy' ? (
+                          <button key={idx} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${docItem.link}`); showToast('Link copied!', 'success'); setDocsDropdown(null); }} className="block w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                            {docItem.label}
+                          </button>
+                        ) : (
+                          <a key={idx} href={docItem.link} target="_blank" rel="noopener noreferrer" onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                            {docItem.label} ↗
+                          </a>
+                        )
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -784,59 +970,61 @@ const Projects = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-300">
-                        {project.aiAssessment?.suggestedPrice
+                        {proposalStatuses.includes(project.status) && project.aiAssessment?.suggestedPrice
                           ? formatCurrency(project.aiAssessment.suggestedPrice)
                           : project.budgetRange || '-'}
                       </td>
                       <td className="px-6 py-4 text-gray-300">{formatDate(project.createdAt)}</td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2 items-center">
+                        <div className="flex gap-2 items-center relative">
                           <button
                             onClick={() => setSelectedProject(project)}
                             className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded whitespace-nowrap"
                           >
                             View
                           </button>
-                          {project.status === 'assessed' && project.clientType !== 'student' && !project.discovery?.completed && (
+                          {/* Next Action Button */}
+                          {(() => {
+                            const nextAction = getNextAction(project);
+                            if (!nextAction) return null;
+                            return (
+                              <button
+                                onClick={nextAction.action}
+                                disabled={nextAction.disabled || nextAction.loading}
+                                className={`px-3 py-1 text-xs text-white rounded disabled:opacity-50 whitespace-nowrap ${nextAction.color}`}
+                              >
+                                {nextAction.loading ? '...' : nextAction.label}
+                              </button>
+                            );
+                          })()}
+                          {/* View Documents Dropdown */}
+                          <div className="relative">
                             <button
-                              onClick={() => handleSendDiscovery(project.id)}
-                              disabled={isSending === project.id}
-                              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50 whitespace-nowrap"
+                              onClick={(e) => { e.stopPropagation(); setDocsDropdown(docsDropdown === project.id ? null : project.id); }}
+                              className="px-3 py-1 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded whitespace-nowrap"
                             >
-                              {isSending === project.id ? '...' : 'Send Discovery'}
+                              📄 Documents
                             </button>
-                          )}
-                          {project.discovery?.completed && (
-                            <Link
-                              to={`/admin/projects/${project.id}/discovery`}
-                              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded whitespace-nowrap"
-                            >
-                              View Discovery
-                            </Link>
-                          )}
-                          {(project.status === 'assessed' && project.clientType === 'student' || project.status === 'discovery_completed') && (
-                            <button
-                              onClick={() => handleStatusChange(project.id, 'interview_scheduled', { interview: { status: 'scheduled', scheduledAt: new Date() } })}
-                              className="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded whitespace-nowrap"
-                            >
-                              Schedule Interview
-                            </button>
-                          )}
-                          <Link
-                            to={`/admin/projects/${project.id}/bugs`}
-                            className="px-3 py-1 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded whitespace-nowrap"
-                          >
-                            Bugs
-                          </Link>
-                          <button
-                            onClick={() => {
-                              const link = `${window.location.origin}/feature-request/${project.id}`;
-                              navigator.clipboard.writeText(link);
-                            }}
-                            className="px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded whitespace-nowrap"
-                          >
-                            Feature Req Link
-                          </button>
+                            {docsDropdown === project.id && (
+                              <div className="absolute top-full right-0 mt-1 z-50 bg-gray-700 border border-gray-600 rounded-lg shadow-xl p-2 min-w-[200px]">
+                                {getProjectDocuments(project).map((docItem, idx) => (
+                                  docItem.type === 'route' ? (
+                                    <Link key={idx} to={docItem.link} onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                                      {docItem.label}
+                                    </Link>
+                                  ) : docItem.type === 'copy' ? (
+                                    <button key={idx} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${docItem.link}`); showToast('Link copied!', 'success'); setDocsDropdown(null); }} className="block w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                                      {docItem.label}
+                                    </button>
+                                  ) : (
+                                    <a key={idx} href={docItem.link} target="_blank" rel="noopener noreferrer" onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                                      {docItem.label} ↗
+                                    </a>
+                                  )
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -871,7 +1059,7 @@ const Projects = () => {
               <div className="mb-3">
                 <p className="text-gray-400 text-xs">Amount</p>
                 <p className="text-green-400 font-semibold">
-                  {project.aiAssessment?.suggestedPrice
+                  {proposalStatuses.includes(project.status) && project.aiAssessment?.suggestedPrice
                     ? formatCurrency(project.aiAssessment.suggestedPrice)
                     : project.budgetRange || '-'}
                 </p>
@@ -900,61 +1088,49 @@ const Projects = () => {
                   >
                     View
                   </button>
-                  {/* Discovery first (non-students only) */}
-                  {project.status === 'assessed' && project.clientType !== 'student' && !project.discovery?.completed && (
-                    <button
-                      onClick={() => handleSendDiscovery(project.id)}
-                      disabled={isSending === project.id}
-                      className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-500 text-white rounded disabled:opacity-50"
-                    >
-                      {isSending === project.id ? '...' : 'Discovery'}
-                    </button>
-                  )}
-                  {project.discovery?.completed && (
-                    <Link
-                      to={`/admin/projects/${project.id}/discovery`}
-                      className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
-                    >
-                      Discovery
-                    </Link>
-                  )}
-                  {/* Interview after discovery (or right away for students) */}
-                  {(project.status === 'discovery_completed' || (project.status === 'assessed' && project.clientType === 'student')) && (
-                    <button
-                      onClick={() => handleStatusChange(project.id, 'interview_scheduled', { interview: { status: 'scheduled', scheduledAt: new Date() } })}
-                      className="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white rounded"
-                    >
-                      Interview
-                    </button>
-                  )}
-                  {project.status === 'interview_scheduled' && (
-                    <button
-                      onClick={() => handleStatusChange(project.id, 'interview_done', { interview: { ...project.interview, status: 'completed', completedAt: new Date() } })}
-                      className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded"
-                    >
-                      Done
-                    </button>
-                  )}
-                  {project.status === 'interview_done' && (
-                    <button
-                      onClick={() => handleGenerateProposal(project)}
-                      disabled={generatingId === project.id}
-                      className="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded disabled:opacity-50"
-                    >
-                      {generatingId === project.id ? '...' : 'Gen Prop'}
-                    </button>
-                  )}
-                  {project.status === 'interview_done' && (
-                    <button
-                      onClick={() => handleSendProposal(project.id)}
-                      disabled={isSending === project.id}
-                      className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
-                    >
-                      {isSending === project.id ? '...' : 'Send'}
-                    </button>
-                  )}
+                  {/* Next Action Button */}
+                  {(() => {
+                    const nextAction = getNextAction(project);
+                    if (!nextAction) return null;
+                    return (
+                      <button
+                        onClick={nextAction.action}
+                        disabled={nextAction.disabled || nextAction.loading}
+                        className={`px-3 py-1 text-xs text-white rounded disabled:opacity-50 whitespace-nowrap ${nextAction.color}`}
+                      >
+                        {nextAction.loading ? '...' : nextAction.label}
+                      </button>
+                    );
+                  })()}
+                  {/* View Documents */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDocsDropdown(docsDropdown === project.id ? null : project.id); }}
+                    className="px-3 py-1 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded whitespace-nowrap"
+                  >
+                    📄
+                  </button>
                 </div>
               </div>
+              {/* Documents Dropdown for Cards */}
+              {docsDropdown === project.id && (
+                <div className="mt-2 bg-gray-700 border border-gray-600 rounded-lg p-2">
+                  {getProjectDocuments(project).map((docItem, idx) => (
+                    docItem.type === 'route' ? (
+                      <Link key={idx} to={docItem.link} onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                        {docItem.label}
+                      </Link>
+                    ) : docItem.type === 'copy' ? (
+                      <button key={idx} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${docItem.link}`); showToast('Link copied!', 'success'); setDocsDropdown(null); }} className="block w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                        {docItem.label}
+                      </button>
+                    ) : (
+                      <a key={idx} href={docItem.link} target="_blank" rel="noopener noreferrer" onClick={() => setDocsDropdown(null)} className="block px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 rounded">
+                        {docItem.label} ↗
+                      </a>
+                    )
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1258,12 +1434,27 @@ const Projects = () => {
                     <span>🎤</span> Interview
                   </h3>
                   <div className="bg-gray-700/30 rounded-lg p-4 space-y-4">
-                    {/* Interview status */}
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${selectedProject.status === 'interview_done' ? 'bg-green-500' : selectedProject.status === 'interview_scheduled' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'}`}></div>
+                    {/* Interview status + scheduled date */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className={`w-3 h-3 rounded-full shrink-0 ${selectedProject.status === 'interview_done' ? 'bg-green-500' : selectedProject.status === 'interview_scheduled' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'}`}></div>
                       <span className="text-gray-300 text-sm">
-                        {selectedProject.status === 'interview_done' ? 'Interview Completed' : selectedProject.status === 'interview_scheduled' ? 'Interview Scheduled' : 'Not yet scheduled'}
+                        {selectedProject.status === 'interview_done'
+                          ? 'Interview Completed'
+                          : selectedProject.status === 'interview_scheduled'
+                            ? selectedProject.interview?.scheduledDateStr
+                              ? <>Scheduled: <strong className="text-white">{selectedProject.interview.scheduledDateStr}</strong></>
+                              : 'Interview Scheduled (no date set)'
+                            : 'Not yet scheduled'}
                       </span>
+                      {/* Reschedule button if already scheduled */}
+                      {selectedProject.status === 'interview_scheduled' && (
+                        <button
+                          onClick={() => { setScheduleModal(selectedProject.id); setScheduleDate(''); setScheduleTime(''); }}
+                          className="px-3 py-1 text-xs bg-amber-700 hover:bg-amber-600 text-white rounded-lg"
+                        >
+                          🔄 Reschedule
+                        </button>
+                      )}
                     </div>
 
                     {/* Interview notes */}
@@ -1282,20 +1473,17 @@ const Projects = () => {
 
                     {/* Interview actions */}
                     <div className="flex flex-wrap gap-2">
-                      {(selectedProject.status === 'discovery_completed' || (selectedProject.status === 'assessed' && selectedProject.clientType === 'student')) && (
-                        <button
-                          onClick={async () => {
-                            await handleStatusChange(selectedProject.id, 'interview_scheduled', {
-                              interview: { status: 'scheduled', scheduledAt: new Date() }
-                            });
-                            const updatedSnap = await getDoc(doc(db, 'projects', selectedProject.id));
-                            setSelectedProject({ id: updatedSnap.id, ...updatedSnap.data() });
-                          }}
-                          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors"
-                        >
-                          📅 Schedule Interview
-                        </button>
-                      )}
+                      {/* Show Schedule button if: discovery_completed, or assessed+student, or interview_scheduled with no date */}
+                      {(selectedProject.status === 'discovery_completed' ||
+                        (selectedProject.status === 'assessed' && selectedProject.clientType === 'student') ||
+                        (selectedProject.status === 'interview_scheduled' && !selectedProject.interview?.scheduledDateStr)) && (
+                          <button
+                            onClick={() => { setScheduleModal(selectedProject.id); setScheduleDate(''); setScheduleTime(''); }}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors"
+                          >
+                            📅 Schedule Interview
+                          </button>
+                        )}
                       {selectedProject.status === 'interview_scheduled' && (
                         <button
                           onClick={async () => {
@@ -1526,6 +1714,63 @@ const Projects = () => {
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Interview Modal */}
+      {scheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-gray-800 rounded-lg max-w-sm w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-white">📅 Schedule Interview</h2>
+              <button onClick={() => setScheduleModal(null)} className="text-gray-400 hover:text-white">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Time</label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {scheduleDate && scheduleTime && (
+                <p className="text-sm text-blue-400">
+                  Interview set for: <strong>{new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+                </p>
+              )}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setScheduleModal(null)}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleConfirmSchedule(scheduleModal)}
+                  disabled={!scheduleDate || !scheduleTime}
+                  className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  Confirm Schedule
+                </button>
               </div>
             </div>
           </div>
