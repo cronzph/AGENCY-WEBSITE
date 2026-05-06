@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getAgencyName } from '../../utils/settings';
@@ -187,63 +187,10 @@ const Proposal = () => {
     return prices[tier] || { min: 0, max: 0 };
   };
 
-  // Build effective proposal data: use generated proposalData if available,
-  // otherwise construct a fallback from aiAssessment so old proposals still render
-  const rawProposalData = proposal?.proposalData;
+  // Only use admin-generated proposalData — no auto-fallback from aiAssessment
+  const proposalData = proposal?.proposalData || null;
   const aiAssessment = proposal?.aiAssessment || {};
   const tierPrice = getTierPrice(proposal?.saasTier);
-
-  const proposalData = rawProposalData || (Object.keys(aiAssessment).length > 0 ? {
-    projectTitle: `${proposal?.businessName || 'Project'} — ${aiAssessment.projectType || 'Web Development'}`,
-    subtitle: aiAssessment.scopeSummary || 'Custom web solution for your business.',
-    investmentSummary: {
-      totalCost: aiAssessment.suggestedPrice || 0,
-      downpayment: aiAssessment.downpayment || 0,
-      finalPayment: aiAssessment.finalPayment || 0,
-      paymentMethods: 'GCash / Maya / Bank Transfer',
-    },
-    pricingBreakdown: [
-      { module: 'Design & Development', price: Math.round((aiAssessment.suggestedPrice || 0) * 0.6) },
-      { module: 'Testing & QA', price: Math.round((aiAssessment.suggestedPrice || 0) * 0.2) },
-      { module: 'Deployment & Setup', price: Math.round((aiAssessment.suggestedPrice || 0) * 0.2) },
-    ],
-    timeline: [
-      { milestone: 'Design & Planning', duration: '3–5 days' },
-      { milestone: 'Development', duration: `${aiAssessment.estimatedDays || 14} days` },
-      { milestone: 'Testing & Revisions', duration: '3–5 days' },
-      { milestone: 'Launch & Handover', duration: '1–2 days' },
-    ],
-    scopeOfWork: proposal?.servicesNeeded?.length > 0 ? [
-      {
-        category: 'Services Included',
-        icon: '🛠️',
-        items: proposal.servicesNeeded,
-      },
-      {
-        category: 'Tech Stack',
-        icon: '⚙️',
-        items: aiAssessment.technologiesNeeded || ['React', 'Firebase', 'Vercel'],
-      },
-    ] : [],
-    outOfScope: [
-      { category: 'Not Included', items: ['Ongoing maintenance (unless SaaS plan)', 'Content writing', 'Third-party integrations not specified'] },
-    ],
-    revisionPolicy: { roundsIncluded: 2, revisionWindow: '14 days after delivery', additionalCost: '₱500 per round' },
-    bugPolicy: [
-      { type: 'Critical / Core Broken', freePeriod: '30 days ✅', afterFree: '₱2,500+' },
-      { type: 'Minor / UI Issues', freePeriod: '30 days ✅', afterFree: 'FREE' },
-    ],
-    assumptions: aiAssessment.warnings?.length > 0 ? aiAssessment.warnings : ['Stable internet required', 'Client provides content within 3 days', 'Firebase free tier limits apply'],
-    termsAndConditions: [
-      'Scope is limited to what is described in this proposal.',
-      '50% downpayment required before work begins. Non-refundable.',
-      'Final 50% due upon delivery.',
-      'Client owns the source code upon full payment.',
-      'Timeline starts upon receipt of downpayment.',
-      'Developer not liable for changes made by client after delivery.',
-      'Revisions limited to 2 rounds. Additional revisions charged separately.',
-    ],
-  } : null);
 
   const currentDate = new Date();
   const currentMonthYear = currentDate.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
@@ -266,51 +213,74 @@ const Proposal = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
-        <div className="text-red-500 text-xl">{error}</div>
-      </div>
-    );
-  }
-
-  if (signed || proposal?.clientSignature) {
-    return (
       <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-lg p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-4">✅ Proposal Accepted</h2>
-          <p className="text-gray-300 mb-4">
-            Thank you, {proposal?.clientName || proposal?.fullName || 'Client'}. We'll be in touch shortly to begin your project.
-          </p>
-          {proposal?.clientSignature && (
-            <div className="mt-4 p-4 bg-white rounded-lg">
-              <p className="text-gray-500 text-sm mb-2">Your Signature:</p>
-              <img src={proposal.clientSignature} alt="Client Signature" className="max-h-20 mx-auto" />
-            </div>
-          )}
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">{error}</div>
+          <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+            ← Back to Portal
+          </Link>
         </div>
       </div>
     );
   }
+
+  // If proposal is already accepted, we'll show it in read-only mode (handled below by hiding signature section)
+  const isProposalAccepted = signed || !!proposal?.clientSignature;
 
   if (!proposalData) {
-    // Only hits this if project has neither proposalData nor aiAssessment
+    // Only hits this if project has no admin-generated proposalData
     return (
       <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-lg p-8 max-w-md text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Proposal Being Prepared</h2>
-          <p className="text-gray-300">We're reviewing your inquiry. We'll send you the proposal details soon.</p>
+        <div className="bg-gray-800 rounded-2xl p-10 max-w-lg text-center shadow-2xl border border-gray-700">
+          {/* Animated preparation icon */}
+          <div className="relative w-20 h-20 mx-auto mb-6">
+            <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+            <div className="relative w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center border-2 border-blue-500/30">
+              <span className="text-4xl">📝</span>
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Proposal is Being Prepared</h2>
+          <p className="text-gray-300 mb-6 leading-relaxed">
+            Our team is reviewing your inquiry and preparing a customized proposal tailored to your project needs. You'll be notified once it's ready.
+          </p>
+          <div className="bg-gray-700/50 rounded-lg p-4 mb-6 text-left space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="text-green-400">✓</span>
+              <span className="text-gray-300 text-sm">Inquiry received</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-green-400">✓</span>
+              <span className="text-gray-300 text-sm">Project assessed</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-blue-400 text-sm font-medium">Preparing your proposal...</span>
+            </div>
+          </div>
+          <p className="text-gray-500 text-sm mb-6">
+            Typical turnaround: 1–2 business days
+          </p>
+          <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+            ← Back to Portal
+          </Link>
         </div>
       </div>
     );
   }
+
+  const isClientLoggedIn = !!localStorage.getItem('clientPortal');
 
   return (
     <div className="min-h-screen bg-[#0f1117] py-8 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Back to Portal */}
+        {isClientLoggedIn && (
+          <div className="mb-6">
+            <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+              ← Back to Portal
+            </Link>
+          </div>
+        )}
         {/* 1. HEADER */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">{proposalData.projectTitle || 'Project Proposal'}</h1>
@@ -504,95 +474,137 @@ const Proposal = () => {
           </div>
         </div>
 
-        {/* E-Signature Section */}
+        {/* E-Signature / Accepted Section */}
         <div id="signature-section" className="mb-6">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">🤝 Agreement</h2>
+          {isProposalAccepted ? (
+            <div className="bg-gray-800 rounded-lg p-6 border border-green-500/30">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-green-400">✅ Proposal Accepted</h2>
+                  <p className="text-gray-400 text-sm">Signed by {proposal?.clientName || proposal?.fullName || 'Client'}</p>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-              <div>
-                <p className="text-gray-400">Developer:</p>
-                <p className="text-white font-semibold">CronzPH</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-400">Developer:</p>
+                  <p className="text-white font-semibold">CronzPH</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Client:</p>
+                  <p className="text-white font-semibold">{proposal?.clientName || proposal?.fullName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Project:</p>
+                  <p className="text-white font-semibold">{proposalData?.projectTitle || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Total:</p>
+                  <p className="text-green-400 font-bold">{formatCurrency(proposalData?.investmentSummary?.totalCost)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-gray-400">Client:</p>
-                <p className="text-white font-semibold">{proposal?.clientName || proposal?.fullName || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Project:</p>
-                <p className="text-white font-semibold">{proposalData?.projectTitle || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Date:</p>
-                <p className="text-white font-semibold">{new Date().toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-gray-400">Total:</p>
-                <p className="text-green-400 font-bold text-lg">{formatCurrency(proposalData?.investmentSummary?.totalCost)}</p>
-              </div>
+
+              {proposal?.clientSignature && (
+                <div className="mt-4 p-3 bg-white rounded-lg inline-block">
+                  <p className="text-gray-500 text-xs mb-1">Client Signature:</p>
+                  <img src={proposal.clientSignature} alt="Client Signature" className="max-h-16" />
+                </div>
+              )}
             </div>
+          ) : (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-4">🤝 Agreement</h2>
 
-            {/* Canvas for signature */}
-            <div className="mb-4">
-              <p className="text-gray-400 text-sm mb-2">Draw Your Signature Here</p>
-              <canvas
-                ref={canvasRef}
-                width={600}
-                height={160}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-                className="bg-white border-2 border-dashed border-gray-400 rounded-lg w-full h-40 cursor-crosshair"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                <div>
+                  <p className="text-gray-400">Developer:</p>
+                  <p className="text-white font-semibold">CronzPH</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Client:</p>
+                  <p className="text-white font-semibold">{proposal?.clientName || proposal?.fullName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Project:</p>
+                  <p className="text-white font-semibold">{proposalData?.projectTitle || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Date:</p>
+                  <p className="text-white font-semibold">{new Date().toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-gray-400">Total:</p>
+                  <p className="text-green-400 font-bold text-lg">{formatCurrency(proposalData?.investmentSummary?.totalCost)}</p>
+                </div>
+              </div>
 
-            <button
-              onClick={clearCanvas}
-              className="text-sm text-gray-400 hover:text-white mb-6"
-            >
-              Clear Signature
-            </button>
-
-            {/* Checkboxes */}
-            <div className="space-y-4 mb-6">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="w-5 h-5 mt-1 text-blue-500 rounded"
+              {/* Canvas for signature */}
+              <div className="mb-4">
+                <p className="text-gray-400 text-sm mb-2">Draw Your Signature Here</p>
+                <canvas
+                  ref={canvasRef}
+                  width={600}
+                  height={160}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  className="bg-white border-2 border-dashed border-gray-400 rounded-lg w-full h-40 cursor-crosshair"
                 />
-                <span className="text-gray-300">
-                  I agree to the Terms & Conditions
-                </span>
-              </label>
+              </div>
 
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreedToScope}
-                  onChange={(e) => setAgreedToScope(e.target.checked)}
-                  className="w-5 h-5 mt-1 text-blue-500 rounded"
-                />
-                <span className="text-gray-300">
-                  I understand the Scope of Work
-                </span>
-              </label>
+              <button
+                onClick={clearCanvas}
+                className="text-sm text-gray-400 hover:text-white mb-6"
+              >
+                Clear Signature
+              </button>
+
+              {/* Checkboxes */}
+              <div className="space-y-4 mb-6">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="w-5 h-5 mt-1 text-blue-500 rounded"
+                  />
+                  <span className="text-gray-300">
+                    I agree to the Terms & Conditions
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreedToScope}
+                    onChange={(e) => setAgreedToScope(e.target.checked)}
+                    className="w-5 h-5 mt-1 text-blue-500 rounded"
+                  />
+                  <span className="text-gray-300">
+                    I understand the Scope of Work
+                  </span>
+                </label>
+              </div>
+
+              {/* Accept Button */}
+              <button
+                onClick={handleAccept}
+                disabled={signing}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {signing ? 'Processing...' : 'Accept & Sign Proposal'}
+              </button>
             </div>
-
-            {/* Accept Button */}
-            <button
-              onClick={handleAccept}
-              disabled={signing}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {signing ? 'Processing...' : 'Accept & Sign Proposal'}
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

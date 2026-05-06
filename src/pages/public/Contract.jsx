@@ -111,7 +111,7 @@ const Contract = () => {
                     <div className="text-4xl mb-4">⚠️</div>
                     <h2 className="text-2xl font-bold text-white mb-4">Error</h2>
                     <p className="text-gray-300 mb-6">{error}</p>
-                    <Link to="/" className="text-blue-400 hover:text-blue-300">Go to Homepage</Link>
+                    <Link to="/portal" className="text-blue-400 hover:text-blue-300">← Back to Portal</Link>
                 </div>
             </div>
         );
@@ -123,6 +123,13 @@ const Contract = () => {
     return (
         <div className="min-h-screen bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
+                {/* Back to Portal */}
+                <div className="mb-6">
+                    <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+                        ← Back to Portal
+                    </Link>
+                </div>
+
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">
@@ -148,23 +155,80 @@ const Contract = () => {
                         <p className="text-gray-400 mb-6">
                             Your contract is being prepared by our team. Please check back later or contact us.
                         </p>
-                        <Link to="/" className="text-blue-400 hover:text-blue-300">Go to Homepage</Link>
+                        <Link to="/portal" className="text-blue-400 hover:text-blue-300">← Back to Portal</Link>
                     </div>
                 ) : isSigned ? (
-                    /* Already Signed */
-                    <div className="bg-gray-800 rounded-lg p-8 text-center">
-                        <div className="text-4xl mb-4">✅</div>
-                        <h2 className="text-xl font-bold text-white mb-2">Contract Already Signed</h2>
-                        <p className="text-gray-400 mb-6">
-                            This contract was signed on {new Date(contract.signedAt?.toDate()).toLocaleDateString('en-PH', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                            })}.
-                        </p>
-                        <Link to={`/payment/${id}`} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg">
-                            Continue to Payment
-                        </Link>
+                    /* Already Signed — show full contract in read-only mode */
+                    <div className="space-y-6">
+                        {/* Signed Banner */}
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center shrink-0">
+                                <span className="text-xl">✅</span>
+                            </div>
+                            <div>
+                                <p className="text-green-400 font-semibold">Contract Signed</p>
+                                <p className="text-gray-400 text-sm">
+                                    Signed by {contract.signedBy} on {new Date(contract.signedAt?.toDate()).toLocaleDateString('en-PH', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                    })}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Contract Content */}
+                        <div className="bg-gray-800 rounded-lg p-8">
+                            <h2 className="text-2xl font-bold text-white mb-6 text-center">
+                                {contract.contractTitle || 'Software Development Agreement'}
+                            </h2>
+                            <div className="prose prose-invert max-w-none">
+                                <div className="whitespace-pre-wrap text-gray-300 text-sm leading-relaxed">
+                                    {contract.fullText}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Per-Issue Pricing Table */}
+                        <div className="bg-gray-800 rounded-lg p-6">
+                            <h3 className="text-lg font-bold text-white mb-4">Per-Issue Pricing (After Warranty)</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-700">
+                                            <th className="text-left py-2 text-gray-400">Issue Type</th>
+                                            <th className="text-left py-2 text-gray-400">Description</th>
+                                            <th className="text-left py-2 text-gray-400">Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-gray-300">
+                                        <tr className="border-b border-gray-700/50">
+                                            <td className="py-2">Minor (cosmetic)</td>
+                                            <td className="py-2">Visual issues, spacing, colors</td>
+                                            <td className="py-2">FREE always</td>
+                                        </tr>
+                                        <tr className="border-b border-gray-700/50">
+                                            <td className="py-2">Medium</td>
+                                            <td className="py-2">Broken feature, not core</td>
+                                            <td className="py-2">₱1,000 - ₱2,500</td>
+                                        </tr>
+                                        <tr className="border-b border-gray-700/50">
+                                            <td className="py-2">Major</td>
+                                            <td className="py-2">Core functionality broken</td>
+                                            <td className="py-2">₱2,500 - ₱5,000</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="py-2">Critical</td>
+                                            <td className="py-2">System down, urgent</td>
+                                            <td className="py-2">₱5,000+</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p className="text-gray-500 text-xs mt-4">
+                                * All issues within 30 days of delivery are covered under warranty at no additional cost.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     /* Contract Display */

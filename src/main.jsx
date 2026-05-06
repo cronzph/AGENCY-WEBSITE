@@ -15,6 +15,7 @@ import BugReport from './pages/public/BugReport'
 import FeatureRequest from './pages/public/FeatureRequest'
 import ClientLogin from './pages/public/ClientLogin'
 import ClientPortal from './pages/public/ClientPortal'
+import InterviewResults from './pages/public/InterviewResults'
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard'
@@ -38,6 +39,7 @@ import FeatureRequests from './pages/admin/FeatureRequests'
 
 // Components
 import ProtectedRoute from './components/shared/ProtectedRoute'
+import ClientRedirect from './components/shared/ClientRedirect'
 import AdminLayout from './components/admin/AdminLayout'
 import { ToastProvider } from './components/shared/Toast'
 
@@ -47,7 +49,7 @@ createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<ClientRedirect><Landing /></ClientRedirect>} />
           <Route path="/inquiry" element={<Inquiry />} />
           <Route path="/proposal/:id" element={<Proposal />} />
           <Route path="/payment/:id" element={<Payment />} />
@@ -56,6 +58,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/contract/:id" element={<Contract />} />
           <Route path="/bug-report/:id" element={<BugReport />} />
           <Route path="/feature-request/:id" element={<FeatureRequest />} />
+          <Route path="/interview/:id" element={<InterviewResults />} />
           <Route path="/portal/login" element={<ClientLogin />} />
           <Route path="/portal" element={<ClientPortal />} />
 

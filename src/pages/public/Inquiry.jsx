@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { assessInquiry } from '../../ai/cerebras';
 import { getAgencyName } from '../../utils/settings';
 import { createNotifications } from '../../utils/notifications';
 
 const Inquiry = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit'); // null for new, project ID for edit
+
   const [formData, setFormData] = useState({
-    // Section 1 - Personal Info
-    clientType: '', // 'business' or 'student'
+    clientType: '',
     fullName: '',
     businessName: '',
-    studentProjectType: '', // 'Capstone Project' or 'School Activity'
+    studentProjectType: '',
     email: '',
     phone: '',
-    // Section 2 - Project Info
     services: [],
     projectDescription: '',
     timeline: '',
-    // Section 3 - Service Type & Budget
     paymentType: '',
     budgetRange: '',
     selectedTier: '',
@@ -43,6 +43,36 @@ const Inquiry = () => {
     };
     fetchAgencyName();
   }, []);
+
+  // If editing an existing inquiry, pre-fill the form
+  useEffect(() => {
+    if (!editId) return;
+    const fetchExisting = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'projects', editId));
+        if (snap.exists()) {
+          const d = snap.data();
+          setFormData({
+            clientType: d.clientType || '',
+            fullName: d.clientName || '',
+            businessName: d.businessName || '',
+            studentProjectType: d.studentProjectType || '',
+            email: d.email || '',
+            phone: d.phone || '',
+            services: d.servicesNeeded || [],
+            projectDescription: d.projectDescription || '',
+            timeline: d.preferredTimeline || '',
+            paymentType: d.paymentPreference || '',
+            budgetRange: d.budgetRange || '',
+            selectedTier: d.saasTier || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load existing inquiry:', err);
+      }
+    };
+    fetchExisting();
+  }, [editId]);
 
 
 
@@ -245,77 +275,67 @@ const Inquiry = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     if (!validateForm()) return;
-
     setIsSubmitting(true);
 
+    const payload = {
+      clientType: formData.clientType,
+      clientName: sanitizeText(formData.fullName),
+      businessName: formData.clientType === 'business' ? sanitizeText(formData.businessName) : '',
+      studentProjectType: formData.clientType === 'student' ? formData.studentProjectType : '',
+      email: sanitizeText(formData.email),
+      phone: sanitizeText(formData.phone),
+      servicesNeeded: formData.services,
+      projectDescription: sanitizeText(formData.projectDescription),
+      preferredTimeline: formData.timeline,
+      paymentPreference: formData.paymentType,
+      budgetRange: formData.budgetRange,
+      saasTier: formData.selectedTier || null,
+      updatedAt: serverTimestamp(),
+    };
+
     try {
-      // Save inquiry to Firestore (sanitize all text inputs before saving)
-      const docRef = await addDoc(collection(db, 'projects'), {
-        clientType: formData.clientType,
-        clientName: sanitizeText(formData.fullName),
-        businessName: formData.clientType === 'business' ? sanitizeText(formData.businessName) : '',
-        studentProjectType: formData.clientType === 'student' ? formData.studentProjectType : '',
-        email: sanitizeText(formData.email),
-        phone: sanitizeText(formData.phone),
-        servicesNeeded: formData.services,
-        projectDescription: sanitizeText(formData.projectDescription),
-        preferredTimeline: formData.timeline,
-        paymentPreference: formData.paymentType,
-        budgetRange: formData.budgetRange,
-        saasTier: formData.selectedTier || null,
-        status: 'inquiry',
-        createdAt: serverTimestamp(),
-      });
-
-      // Create notification for new inquiry
-      await createNotifications.newInquiry({
-        id: docRef.id,
-        clientName: formData.fullName,
-        businessName: formData.businessName,
-      });
-
-      // Try AI assessment
-      try {
-        const assessment = await assessInquiry({
-          servicesNeeded: formData.services,
-          projectDescription: formData.projectDescription,
-          preferredTimeline: formData.timeline,
-          paymentPreference: formData.paymentType,
-          budgetRange: formData.budgetRange,
-          selectedTier: formData.selectedTier,
+      if (editId) {
+        // --- EDIT MODE: update existing document ---
+        await updateDoc(doc(db, 'projects', editId), payload);
+        // Navigate back to portal
+        navigate('/portal');
+      } else {
+        // --- CREATE MODE: new inquiry ---
+        const docRef = await addDoc(collection(db, 'projects'), {
+          ...payload,
+          status: 'inquiry',
+          createdAt: serverTimestamp(),
         });
 
-        // Update with AI assessment
-        await updateDoc(doc(db, 'projects', docRef.id), {
-          aiAssessment: assessment,
-          status: 'assessed',
-          assessedAt: serverTimestamp(),
+        await createNotifications.newInquiry({
+          id: docRef.id,
+          clientName: formData.fullName,
+          businessName: formData.businessName,
         });
-      } catch (aiError) {
-        console.error('AI assessment failed:', aiError);
-        // Status remains "inquiry" if AI fails
+
+        // Try AI assessment
+        try {
+          const assessment = await assessInquiry({
+            servicesNeeded: formData.services,
+            projectDescription: formData.projectDescription,
+            preferredTimeline: formData.timeline,
+            paymentPreference: formData.paymentType,
+            budgetRange: formData.budgetRange,
+            selectedTier: formData.selectedTier,
+          });
+          await updateDoc(doc(db, 'projects', docRef.id), {
+            aiAssessment: assessment,
+            status: 'assessed',
+            assessedAt: serverTimestamp(),
+          });
+        } catch (aiError) {
+          console.error('AI assessment failed:', aiError);
+        }
+
+        setShowSuccess(true);
+        setInquiryRef(docRef.id);
       }
-
-      // Clear the form
-      setFormData({
-        clientType: '',
-        fullName: '',
-        businessName: '',
-        studentProjectType: '',
-        email: '',
-        phone: '',
-        services: [],
-        projectDescription: '',
-        timeline: '',
-        paymentType: '',
-        budgetRange: '',
-        selectedTier: '',
-      });
-
-      setShowSuccess(true);
-      setInquiryRef(docRef.id);
     } catch (err) {
       console.error('Error submitting form:', err);
       setError('Something went wrong. Please try again.');
@@ -392,7 +412,7 @@ const Inquiry = () => {
         {/* CronzPH */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white">{agencyName}</h1>
-          <p className="text-gray-400 mt-2">Tell us about your project</p>
+          <p className="text-gray-400 mt-2">{editId ? 'Edit Your Inquiry' : 'Tell us about your project'}</p>
           <p className="text-gray-500 text-sm mt-2">
             Already have a project?{' '}
             <Link to="/portal/login" className="text-blue-400 hover:text-blue-300 underline">
@@ -774,7 +794,7 @@ const Inquiry = () => {
                 disabled={isSubmitting || !isFormValid()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
+                {isSubmitting ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update Inquiry' : 'Submit Inquiry')}
               </button>
             )}
           </div>

@@ -12,6 +12,10 @@ const Discovery = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [projectData, setProjectData] = useState(null);
     const [error, setError] = useState('');
+    const [discoveryCompleted, setDiscoveryCompleted] = useState(false);
+    const [discoveryData, setDiscoveryData] = useState(null);
+    const [isProposalSent, setIsProposalSent] = useState(false);
+    const [reRequestSent, setReRequestSent] = useState(false);
 
     const totalSteps = 4;
     const progressPercent = (currentStep / totalSteps) * 100;
@@ -53,9 +57,19 @@ const Discovery = () => {
                 const data = projectDoc.data();
                 setProjectData(data);
 
-                // Check if discovery is already completed
+                // Check if discovery is already completed — show results view
                 if (data.discovery?.completed) {
-                    setError('You have already completed the discovery form.');
+                    setDiscoveryCompleted(true);
+                    setDiscoveryData(data.discovery);
+                    // Check if proposal has been sent (block re-edit)
+                    const proposalStatuses = ['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+                    setIsProposalSent(proposalStatuses.includes(data.status));
+                    return;
+                }
+
+                // Students don't need business discovery
+                if (data.clientType === 'student') {
+                    setError('STUDENT_SKIP');
                     return;
                 }
 
@@ -296,7 +310,231 @@ const Discovery = () => {
         );
     }
 
+    // Discovery completed — show results view
+    if (discoveryCompleted && discoveryData) {
+        const handleReRequest = async () => {
+            setReRequestSent(true);
+            try {
+                await updateDoc(doc(db, 'projects', id), {
+                    discoveryReRequestedAt: serverTimestamp(),
+                    discoveryReRequested: true,
+                });
+            } catch (err) {
+                console.error('Error requesting re-discovery:', err);
+            }
+        };
+
+        return (
+            <div className="min-h-screen bg-gray-900 py-8 px-4">
+                <div className="max-w-3xl mx-auto">
+                    {/* Back to Portal */}
+                    <div className="mb-6">
+                        <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+                            ← Back to Portal
+                        </Link>
+                    </div>
+
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span className="text-3xl">✅</span>
+                        </div>
+                        <h1 className="text-3xl font-bold text-white mb-2">Discovery Completed</h1>
+                        <p className="text-gray-400">
+                            {projectData?.businessName} - {projectData?.clientName}
+                        </p>
+                    </div>
+
+                    {/* Submitted Answers */}
+                    <div className="space-y-6">
+                        {/* Business Process */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700/50">
+                            <h3 className="text-lg font-semibold text-white mb-4">📋 Business Process</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-gray-400 text-sm mb-1">Current Process</p>
+                                    <p className="text-white text-sm">{discoveryData.currentProcess || 'N/A'}</p>
+                                </div>
+                                {discoveryData.toolsUsed?.length > 0 && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Tools Used</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {discoveryData.toolsUsed.map((tool, i) => (
+                                                <span key={i} className="px-2 py-1 bg-gray-700 rounded text-xs text-white">{tool}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {discoveryData.painPoints && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Pain Points</p>
+                                        <p className="text-white text-sm">{discoveryData.painPoints}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Workflow Details */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700/50">
+                            <h3 className="text-lg font-semibold text-white mb-4">🔄 Workflow Details</h3>
+                            <div className="space-y-4">
+                                {discoveryData.workflowSteps?.filter(s => s.trim()).length > 0 && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Workflow Steps</p>
+                                        <ol className="list-decimal list-inside space-y-1">
+                                            {discoveryData.workflowSteps.filter(s => s.trim()).map((step, i) => (
+                                                <li key={i} className="text-white text-sm">{step}</li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                )}
+                                {discoveryData.roles?.filter(r => r.role).length > 0 && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Roles</p>
+                                        <div className="space-y-2">
+                                            {discoveryData.roles.filter(r => r.role).map((r, i) => (
+                                                <div key={i} className="flex gap-2 text-sm">
+                                                    <span className="text-blue-400 font-medium">{r.role}:</span>
+                                                    <span className="text-white">{r.task}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {discoveryData.approvalFlowNeeded === 'yes' && discoveryData.approvalFlowDescription && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Approval Flow</p>
+                                        <p className="text-white text-sm">{discoveryData.approvalFlowDescription}</p>
+                                    </div>
+                                )}
+                                {discoveryData.emergencyHandling && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Emergency Handling</p>
+                                        <p className="text-white text-sm">{discoveryData.emergencyHandling}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Technical Requirements */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700/50">
+                            <h3 className="text-lg font-semibold text-white mb-4">⚙️ Technical Requirements</h3>
+                            <div className="space-y-4">
+                                {discoveryData.userRoles?.length > 0 && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">User Roles</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {discoveryData.userRoles.map((role, i) => (
+                                                <span key={i} className="px-2 py-1 bg-gray-700 rounded text-xs text-white">{role}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {discoveryData.devicePreferences?.length > 0 && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Device Preferences</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {discoveryData.devicePreferences.map((device, i) => (
+                                                <span key={i} className="px-2 py-1 bg-gray-700 rounded text-xs text-white">{device}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {discoveryData.internetAvailability && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Internet Availability</p>
+                                        <p className="text-white text-sm capitalize">{discoveryData.internetAvailability}</p>
+                                    </div>
+                                )}
+                                {discoveryData.dataVolume && (
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Data Volume</p>
+                                        <p className="text-white text-sm capitalize">{discoveryData.dataVolume}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Feature Priorities */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700/50">
+                            <h3 className="text-lg font-semibold text-white mb-4">⭐ Feature Priorities</h3>
+                            <div className="space-y-2">
+                                {Object.entries(discoveryData.featurePriorities || {}).map(([featureId, priority]) => (
+                                    <div key={featureId} className="flex items-center justify-between p-2 bg-gray-700/50 rounded">
+                                        <span className="text-white text-sm">{featureId}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs ${priority === 'must-have' ? 'bg-red-500/20 text-red-400' :
+                                                priority === 'nice-to-have' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    'bg-gray-500/20 text-gray-400'
+                                            }`}>{priority}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            {discoveryData.additionalFeatures && (
+                                <div className="mt-4">
+                                    <p className="text-gray-400 text-sm mb-1">Additional Features Requested</p>
+                                    <p className="text-white text-sm">{discoveryData.additionalFeatures}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-8 text-center">
+                        {isProposalSent ? (
+                            <div className="space-y-4">
+                                <p className="text-gray-400 text-sm">Editing is locked because a proposal has already been sent.</p>
+                                {!reRequestSent && !projectData?.discoveryReRequested ? (
+                                    <button
+                                        onClick={handleReRequest}
+                                        className="px-6 py-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        🔄 Request Re-Discovery
+                                    </button>
+                                ) : (
+                                    <p className="text-yellow-400 text-sm">✓ Re-discovery request submitted. We'll review and get back to you.</p>
+                                )}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setDiscoveryCompleted(false);
+                                    setFormData({
+                                        ...discoveryData,
+                                        completed: undefined,
+                                    });
+                                }}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                ✏️ Edit Responses
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (error) {
+        // Special case: Student projects don't need discovery
+        if (error === 'STUDENT_SKIP') {
+            return (
+                <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+                    <div className="bg-gray-800 rounded-2xl p-10 max-w-lg text-center shadow-2xl border border-gray-700">
+                        <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center border-2 border-purple-500/30 mx-auto mb-6">
+                            <span className="text-4xl">🎓</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-3">Not Required</h2>
+                        <p className="text-gray-300 mb-6 leading-relaxed">
+                            Business Discovery is not required for student projects. Your project will proceed directly to development after payment.
+                        </p>
+                        <Link to="/portal" className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
+                            Back to Portal
+                        </Link>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
                 <div className="bg-gray-800 rounded-lg p-8 max-w-md text-center">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { getAgencyName, getActivePaymentMethods } from '../../utils/settings';
@@ -62,8 +62,10 @@ const Payment = () => {
         }
 
         const projectData = { id: projectSnap.id, ...projectSnap.data() };
-        
-        if (projectData.status !== 'proposal_accepted' && projectData.status !== 'awaiting_payment' && projectData.status !== 'payment_submitted') {
+
+        // Allow viewing payment page for all statuses from proposal_accepted onwards
+        const allowedStatuses = ['proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+        if (!allowedStatuses.includes(projectData.status)) {
           navigate(`/proposal/${id}`);
           return;
         }
@@ -123,11 +125,11 @@ const Payment = () => {
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
+
           let width = img.width;
           let height = img.height;
           const maxSize = 800;
-          
+
           if (width > height) {
             if (width > maxSize) {
               height = (height * maxSize) / width;
@@ -139,11 +141,11 @@ const Payment = () => {
               height = maxSize;
             }
           }
-          
+
           canvas.width = width;
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
-          
+
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
           resolve(compressedBase64);
         };
@@ -231,7 +233,7 @@ const Payment = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -239,8 +241,8 @@ const Payment = () => {
 
     try {
       // Calculate downpayment
-      const downpaymentAmount = project.aiAssessment?.suggestedPrice 
-        ? project.aiAssessment.suggestedPrice * 0.5 
+      const downpaymentAmount = project.aiAssessment?.suggestedPrice
+        ? project.aiAssessment.suggestedPrice * 0.5
         : 0;
 
       // Add payment record with Base64
@@ -301,6 +303,7 @@ const Payment = () => {
   }
 
   if (showSuccess) {
+    const clientLoggedIn = !!localStorage.getItem('clientPortal');
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-gray-800 rounded-lg max-w-md w-full p-8 text-center">
@@ -314,24 +317,111 @@ const Payment = () => {
             Payment proof submitted! We will confirm your payment within 24 hours and begin your project.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(clientLoggedIn ? '/portal' : '/')}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
           >
-            Back to Home
+            {clientLoggedIn ? 'Back to Portal' : 'Back to Home'}
           </button>
         </div>
       </div>
     );
   }
 
-  const downpaymentAmount = project?.aiAssessment?.suggestedPrice 
-    ? project.aiAssessment.suggestedPrice * 0.5 
+  const downpaymentAmount = project?.aiAssessment?.suggestedPrice
+    ? project.aiAssessment.suggestedPrice * 0.5
     : 0;
+
+  const isClientLoggedIn = !!localStorage.getItem('clientPortal');
+
+  // Show payment receipt if already submitted or confirmed
+  const paymentAlreadyDone = ['payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'].includes(project?.status);
+
+  if (paymentAlreadyDone && !showSuccess) {
+    const isConfirmed = project?.status !== 'payment_submitted';
+    return (
+      <div className="min-h-screen bg-gray-900 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Back to Portal */}
+          {isClientLoggedIn && (
+            <div className="mb-6">
+              <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+                ← Back to Portal
+              </Link>
+            </div>
+          )}
+
+          {/* Payment Status Banner */}
+          <div className={`rounded-lg p-6 mb-6 border ${isConfirmed ? 'bg-green-500/10 border-green-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isConfirmed ? 'bg-green-500/20' : 'bg-yellow-500/20'}`}>
+                <span className="text-2xl">{isConfirmed ? '✅' : '⏳'}</span>
+              </div>
+              <div>
+                <h2 className={`text-xl font-bold ${isConfirmed ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {isConfirmed ? 'Payment Confirmed' : 'Payment Under Review'}
+                </h2>
+                <p className="text-gray-400 text-sm">
+                  {isConfirmed
+                    ? 'Your payment has been confirmed. Your project is now in progress!'
+                    : 'Your payment proof has been submitted and is being reviewed.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div className="bg-gray-800 rounded-lg p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-white">Payment Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-gray-400 text-sm">Project</p>
+                <p className="text-white">{project?.businessName || project?.clientName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Amount</p>
+                <p className="text-green-400 font-semibold">
+                  {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 0 }).format(downpaymentAmount)}
+                </p>
+              </div>
+              {project?.paymentSubmittedAt && (
+                <div>
+                  <p className="text-gray-400 text-sm">Submitted On</p>
+                  <p className="text-white text-sm">
+                    {new Date(project.paymentSubmittedAt?.toDate ? project.paymentSubmittedAt.toDate() : project.paymentSubmittedAt).toLocaleDateString('en-PH', {
+                      year: 'numeric', month: 'long', day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+              {project?.paymentConfirmedAt && (
+                <div>
+                  <p className="text-gray-400 text-sm">Confirmed On</p>
+                  <p className="text-white text-sm">
+                    {new Date(project.paymentConfirmedAt?.toDate ? project.paymentConfirmedAt.toDate() : project.paymentConfirmedAt).toLocaleDateString('en-PH', {
+                      year: 'numeric', month: 'long', day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 py-8 px-4">
       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
       <div className="max-w-2xl mx-auto">
+        {/* Back to Portal */}
+        {isClientLoggedIn && (
+          <div className="mb-6">
+            <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
+              ← Back to Portal
+            </Link>
+          </div>
+        )}
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white">{agencyName}</h1>
@@ -369,7 +459,7 @@ const Payment = () => {
           {/* Section 1 - Choose Payment Method */}
           <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
             <h2 className="text-xl font-semibold text-white mb-4">Choose Payment Method</h2>
-            
+
             {paymentMethods.length === 0 ? (
               <p className="text-gray-400 text-center py-4">No payment methods available. Please contact support.</p>
             ) : (
@@ -378,7 +468,7 @@ const Payment = () => {
                   const colors = getMethodColor(method);
                   const label = getMethodLabel(method);
                   const isSelected = selectedMethod?.id === method.id;
-                  
+
                   return (
                     <button
                       key={method.id}
@@ -444,7 +534,7 @@ const Payment = () => {
           {selectedMethod && (
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
               <h2 className="text-xl font-semibold text-white mb-4">Upload Payment Proof</h2>
-              
+
               <div className="mb-4">
                 <label className="block text-sm text-gray-300 mb-2">
                   Upload screenshot of your payment <span className="text-red-400">*</span>
@@ -462,9 +552,9 @@ const Payment = () => {
               {filePreview && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-400 mb-2">Preview:</p>
-                  <img 
-                    src={filePreview} 
-                    alt="Payment proof preview" 
+                  <img
+                    src={filePreview}
+                    alt="Payment proof preview"
                     className="max-w-xs rounded-lg border border-gray-600"
                   />
                 </div>
