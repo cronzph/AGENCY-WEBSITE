@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { verifyPassword } from '../../components/shared/SetPassword';
 
 const ClientLogin = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [needsPassword, setNeedsPassword] = useState(false);
+    const [projects, setProjects] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -13,11 +17,14 @@ const ClientLogin = () => {
     useEffect(() => {
         const stored = localStorage.getItem('clientPortal');
         if (stored) {
-            navigate('/portal', { replace: true });
+            const data = JSON.parse(stored);
+            if (data.authenticated) {
+                navigate('/portal', { replace: true });
+            }
         }
     }, [navigate]);
 
-    const handleSubmit = async (e) => {
+    const handleEmailSubmit = async (e) => {
         e.preventDefault();
 
         if (!email.trim()) {
@@ -35,52 +42,90 @@ const ClientLogin = () => {
                 where('email', '==', email.trim().toLowerCase())
             );
 
-            const snapshot = await getDocs(projectsQuery);
+            let snapshot = await getDocs(projectsQuery);
 
+            // Try without lowercase if empty
             if (snapshot.empty) {
-                // Try alternative field names
                 const altQuery = query(
                     collection(db, 'projects'),
                     where('email', '==', email.trim())
                 );
-                const altSnapshot = await getDocs(altQuery);
+                snapshot = await getDocs(altQuery);
+            }
 
-                if (altSnapshot.empty) {
-                    setError('No projects found for this email address.');
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Store client info and redirect
-                const projects = altSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                localStorage.setItem('clientPortal', JSON.stringify({
-                    email: email.trim(),
-                    projects: projects.map(p => ({ id: p.id, name: p.businessName }))
-                }));
-
-                navigate('/portal');
+            if (snapshot.empty) {
+                setError('No projects found for this email address.');
+                setIsLoading(false);
                 return;
             }
 
-            // Store client info and redirect
-            const projects = snapshot.docs.map(doc => ({
+            const foundProjects = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
 
+            // Check if any project has a password set
+            const hasPassword = foundProjects.some(p => p.clientPassword);
+
+            if (hasPassword) {
+                // Require password
+                setProjects(foundProjects);
+                setNeedsPassword(true);
+            } else {
+                // No password set — allow direct access (pre-proposal stage)
+                localStorage.setItem('clientPortal', JSON.stringify({
+                    email: email.trim().toLowerCase(),
+                    authenticated: true,
+                    passwordSet: false,
+                    projects: foundProjects.map(p => ({ id: p.id, name: p.businessName }))
+                }));
+                navigate('/portal');
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            setError('Failed to verify email. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handlePasswordSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!password.trim()) {
+            setError('Please enter your password.');
+            return;
+        }
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            // Verify password against any project that has one
+            const projectWithPassword = projects.find(p => p.clientPassword);
+
+            if (projectWithPassword) {
+                const isValid = await verifyPassword(password, projectWithPassword.clientPassword);
+
+                if (!isValid) {
+                    setError('Incorrect password. Please try again.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // Password verified — grant access
             localStorage.setItem('clientPortal', JSON.stringify({
                 email: email.trim().toLowerCase(),
+                authenticated: true,
+                passwordSet: true,
                 projects: projects.map(p => ({ id: p.id, name: p.businessName }))
             }));
 
             navigate('/portal');
         } catch (err) {
-            console.error('Login error:', err);
-            setError('Failed to verify email. Please try again.');
+            console.error('Password verification error:', err);
+            setError('Failed to verify password. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -109,31 +154,74 @@ const ClientLogin = () => {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Email Address
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Enter your email"
-                                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                            />
-                            <p className="text-gray-500 text-sm mt-2">
-                                Use the same email you provided when submitting your inquiry.
-                            </p>
-                        </div>
+                    {!needsPassword ? (
+                        /* Step 1: Email */
+                        <form onSubmit={handleEmailSubmit}>
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Email Address
+                                </label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your email"
+                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-gray-500 text-sm mt-2">
+                                    Use the same email you provided when submitting your inquiry.
+                                </p>
+                            </div>
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold disabled:opacity-50"
-                        >
-                            {isLoading ? 'Verifying...' : 'Continue'}
-                        </button>
-                    </form>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold disabled:opacity-50"
+                            >
+                                {isLoading ? 'Verifying...' : 'Continue'}
+                            </button>
+                        </form>
+                    ) : (
+                        /* Step 2: Password */
+                        <form onSubmit={handlePasswordSubmit}>
+                            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+                                <p className="text-gray-400 text-sm">
+                                    Logging in as: <span className="text-white font-medium">{email}</span>
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => { setNeedsPassword(false); setPassword(''); setError(''); }}
+                                    className="text-blue-400 text-xs hover:text-blue-300 mt-1"
+                                >
+                                    Use different email
+                                </button>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password"
+                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-gray-500 text-sm mt-2">
+                                    Enter the password you set after accepting your proposal.
+                                </p>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold disabled:opacity-50"
+                            >
+                                {isLoading ? 'Verifying...' : '🔒 Login'}
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {/* Back Link */}

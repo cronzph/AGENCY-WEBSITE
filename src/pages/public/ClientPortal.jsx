@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { doc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import SetPassword from '../../components/shared/SetPassword';
 
 const ClientPortal = () => {
     const navigate = useNavigate();
@@ -11,6 +12,7 @@ const ClientPortal = () => {
     const [projectDetails, setProjectDetails] = useState(null);
     const [bugReports, setBugReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showSetPassword, setShowSetPassword] = useState(false);
 
     useEffect(() => {
         // Check if client is logged in
@@ -38,7 +40,14 @@ const ClientPortal = () => {
                 // Get project details
                 const projectDoc = await getDoc(doc(db, 'projects', selectedProject.id));
                 if (projectDoc.exists()) {
-                    setProjectDetails(projectDoc.data());
+                    const data = projectDoc.data();
+                    setProjectDetails(data);
+
+                    // Check if password needs to be set (after proposal_accepted, no password yet)
+                    const NEEDS_PASSWORD_STATUSES = ['proposal_accepted', 'contract_signed', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+                    if (NEEDS_PASSWORD_STATUSES.includes(data.status) && !data.clientPassword) {
+                        setShowSetPassword(true);
+                    }
 
                     // Get bug reports for this project
                     const bugsQuery = query(
@@ -592,6 +601,25 @@ const ClientPortal = () => {
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
                 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
+
+            {/* Set Password Modal */}
+            {showSetPassword && selectedProject && (
+                <SetPassword
+                    projectId={selectedProject.id}
+                    clientName={projectDetails?.clientName}
+                    onComplete={() => {
+                        setShowSetPassword(false);
+                        // Update localStorage to reflect password is set
+                        const stored = localStorage.getItem('clientPortal');
+                        if (stored) {
+                            const data = JSON.parse(stored);
+                            data.authenticated = true;
+                            data.passwordSet = true;
+                            localStorage.setItem('clientPortal', JSON.stringify(data));
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

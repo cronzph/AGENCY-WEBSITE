@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { assessInquiry } from '../../ai/cerebras';
 import { getAgencyName } from '../../utils/settings';
 import { createNotifications } from '../../utils/notifications';
@@ -27,6 +27,7 @@ const Inquiry = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [inquiryRef, setInquiryRef] = useState('');
   const [error, setError] = useState('');
@@ -87,7 +88,17 @@ const Inquiry = () => {
     'Capstone Project',
     'School Activity',
     'Simple Fix',
+    'Rush Service (Quick Fix)',
     'Other',
+  ];
+
+  const rushServices = [
+    { name: 'Minor bug fix', price: '₱300-₱500' },
+    { name: 'UI/layout fix', price: '₱500-₱1,000' },
+    { name: 'Content update', price: '₱200-₱500' },
+    { name: 'Feature tweak', price: '₱1,000-₱2,500' },
+    { name: 'Major bug fix', price: '₱2,500-₱5,000' },
+    { name: 'Rush (same day)', price: '+50% surcharge' },
   ];
 
   const timelines = [
@@ -270,6 +281,54 @@ const Inquiry = () => {
 
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Check if email already has an active inquiry (prevent duplicates)
+  const checkEmailExists = async (email) => {
+    if (!email || editId) return true; // Skip check when editing
+    try {
+      const emailLower = email.trim().toLowerCase();
+      const existingQuery = query(
+        collection(db, 'projects'),
+        where('email', '==', emailLower)
+      );
+      const snapshot = await getDocs(existingQuery);
+
+      if (!snapshot.empty) {
+        // Check if any active (non-completed/delivered) project exists
+        const activeProjects = snapshot.docs.filter(d => {
+          const status = d.data().status;
+          return !['delivered', 'completed'].includes(status);
+        });
+
+        if (activeProjects.length > 0) {
+          setErrors(prev => ({
+            ...prev,
+            email: 'This email already has an active inquiry. Please use the Client Portal to track your project or use a different email.'
+          }));
+          return false;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Error checking email:', err);
+      return true; // Allow submission if check fails
+    }
+  };
+
+  // Handle Next button with async email check for step 1
+  const handleNextStep = async () => {
+    if (!validateStep(currentStep)) return;
+
+    if (currentStep === 1) {
+      // Check for duplicate email
+      setIsCheckingEmail(true);
+      const emailOk = await checkEmailExists(formData.email);
+      setIsCheckingEmail(false);
+      if (!emailOk) return;
+    }
+
+    setCurrentStep(currentStep + 1);
   };
 
   const handleSubmit = async (e) => {
@@ -464,11 +523,10 @@ const Inquiry = () => {
                   I am a... <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${
-                    formData.clientType === 'business'
-                      ? 'bg-blue-600/20 border-blue-500 text-white'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                  }`}>
+                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${formData.clientType === 'business'
+                    ? 'bg-blue-600/20 border-blue-500 text-white'
+                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    }`}>
                     <input
                       type="radio"
                       name="clientType"
@@ -482,11 +540,10 @@ const Inquiry = () => {
                       <p className="text-xs text-gray-400">I need a system for my business</p>
                     </div>
                   </label>
-                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${
-                    formData.clientType === 'student'
-                      ? 'bg-purple-600/20 border-purple-500 text-white'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                  }`}>
+                  <label className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border-2 transition-all ${formData.clientType === 'student'
+                    ? 'bg-purple-600/20 border-purple-500 text-white'
+                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    }`}>
                     <input
                       type="radio"
                       name="clientType"
@@ -612,6 +669,39 @@ const Inquiry = () => {
                 </div>
                 {errors.services && <p className="text-red-500 text-sm mt-1">{errors.services}</p>}
               </div>
+
+              {/* Rush Services Pricing Info */}
+              {formData.services.includes('Rush Service (Quick Fix)') && (
+                <div className="mb-6 bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                  <h4 className="text-orange-400 font-semibold mb-3 flex items-center gap-2">
+                    ⚡ Rush / Quick Fix Pricing Guide
+                  </h4>
+                  <p className="text-gray-300 text-sm mb-3">
+                    Fast, affordable solutions for common website and system issues:
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-orange-500/20">
+                          <th className="text-left py-2 text-gray-400">Service</th>
+                          <th className="text-right py-2 text-gray-400">Price Range</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rushServices.map((service, idx) => (
+                          <tr key={idx} className="border-b border-gray-700/50">
+                            <td className="py-2 text-gray-300">{service.name}</td>
+                            <td className="py-2 text-right text-orange-300 font-medium">{service.price}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-3">
+                    💡 Rush service guarantees same-day resolution for critical issues. Describe your issue in the project description below.
+                  </p>
+                </div>
+              )}
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -779,14 +869,11 @@ const Inquiry = () => {
             {currentStep < totalSteps ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (validateStep(currentStep)) {
-                    setCurrentStep(currentStep + 1);
-                  }
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                onClick={handleNextStep}
+                disabled={isCheckingEmail}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next
+                {isCheckingEmail ? 'Checking...' : 'Next'}
               </button>
             ) : (
               <button

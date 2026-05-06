@@ -4,6 +4,7 @@ import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getAgencyName } from '../../utils/settings';
 import { createNotifications } from '../../utils/notifications';
+import { generateProposalPDF } from '../../utils/pdfExport';
 
 const Proposal = () => {
   const { id } = useParams();
@@ -273,14 +274,22 @@ const Proposal = () => {
   return (
     <div className="min-h-screen bg-[#0f1117] py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Back to Portal */}
-        {isClientLoggedIn && (
-          <div className="mb-6">
+        {/* Back to Portal + PDF Export */}
+        <div className="mb-6 flex items-center justify-between">
+          {isClientLoggedIn && (
             <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
               ← Back to Portal
             </Link>
-          </div>
-        )}
+          )}
+          {proposalData && (
+            <button
+              onClick={() => generateProposalPDF(proposal, proposalData)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors ml-auto"
+            >
+              📄 Download PDF
+            </button>
+          )}
+        </div>
         {/* 1. HEADER */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">{proposalData.projectTitle || 'Project Proposal'}</h1>

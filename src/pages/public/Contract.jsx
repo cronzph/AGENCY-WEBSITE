@@ -3,18 +3,16 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { createNotifications } from '../../utils/notifications';
+import { generateContractPDF } from '../../utils/pdfExport';
+import SignatureModal from '../../components/shared/SignatureModal';
 
 const Contract = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSigning, setIsSigning] = useState(false);
     const [error, setError] = useState('');
-    const [signatureData, setSignatureData] = useState({
-        fullName: '',
-        agreedToTerms: false,
-    });
+    const [showSignatureModal, setShowSignatureModal] = useState(false);
 
     useEffect(() => {
         const fetchProject = async () => {
@@ -38,42 +36,26 @@ const Contract = () => {
         fetchProject();
     }, [id]);
 
-    const handleInputChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setSignatureData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-    };
-
-    const handleSign = async () => {
-        if (!signatureData.fullName.trim()) {
-            setError('Please enter your full name.');
-            return;
-        }
-
-        if (!signatureData.agreedToTerms) {
-            setError('Please agree to all terms to sign the contract.');
-            return;
-        }
-
-        // Verify name matches client name
-        if (signatureData.fullName.trim().toLowerCase() !== project.clientName?.trim().toLowerCase()) {
-            setError('The name must match the client name on the contract.');
-            return;
-        }
-
-        setIsSigning(true);
-        setError('');
-
+    const handleSignContract = async (signatureData) => {
         try {
-            // Save signed contract
+            // Save signed contract with full legal metadata
             await updateDoc(doc(db, 'projects', id), {
                 contract: {
-                    signedBy: signatureData.fullName.trim(),
+                    ...project.contract,
+                    signedBy: signatureData.signedBy,
                     signedAt: serverTimestamp(),
                     agreedToTerms: true,
                     contractText: project.contract?.fullText || '',
+                    // Legal signature metadata
+                    signatureId: signatureData.signatureId,
+                    signatureImage: signatureData.signatureImage,
+                    signatureIp: signatureData.ipAddress,
+                    signatureUserAgent: signatureData.userAgent,
+                    signatureScreenResolution: signatureData.screenResolution,
+                    signatureTimezone: signatureData.timezone,
+                    signatureTimestamp: signatureData.signedAt,
+                    legalConsent: signatureData.legalConsent,
+                    consentText: signatureData.consentText,
                 },
                 status: 'contract_signed',
                 contractSignedAt: serverTimestamp(),
@@ -90,9 +72,7 @@ const Contract = () => {
             navigate(`/payment/${id}`);
         } catch (err) {
             console.error('Error signing contract:', err);
-            setError('Failed to sign contract. Please try again.');
-        } finally {
-            setIsSigning(false);
+            throw new Error('Failed to sign contract. Please try again.');
         }
     };
 
@@ -123,11 +103,19 @@ const Contract = () => {
     return (
         <div className="min-h-screen bg-gray-900 py-8 px-4">
             <div className="max-w-4xl mx-auto">
-                {/* Back to Portal */}
-                <div className="mb-6">
+                {/* Back to Portal + PDF Export */}
+                <div className="mb-6 flex items-center justify-between">
                     <Link to="/portal" className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors text-sm">
                         ← Back to Portal
                     </Link>
+                    {contract?.fullText && (
+                        <button
+                            onClick={() => generateContractPDF(project, contract)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                        >
+                            📄 Download PDF
+                        </button>
+                    )}
                 </div>
 
                 {/* Header */}
@@ -176,6 +164,46 @@ const Contract = () => {
                                 </p>
                             </div>
                         </div>
+
+                        {/* Signature Verification Info */}
+                        {contract.signatureId && (
+                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                                <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+                                    🔐 Signature Verification
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span className="text-gray-500">Signature ID:</span>
+                                        <span className="text-gray-300 ml-2 font-mono">{contract.signatureId}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">IP Address:</span>
+                                        <span className="text-gray-300 ml-2">{contract.signatureIp}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Timezone:</span>
+                                        <span className="text-gray-300 ml-2">{contract.signatureTimezone}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Timestamp:</span>
+                                        <span className="text-gray-300 ml-2">{contract.signatureTimestamp}</span>
+                                    </div>
+                                </div>
+                                {/* Display captured signature */}
+                                {contract.signatureImage && (
+                                    <div className="mt-3 pt-3 border-t border-gray-700">
+                                        <p className="text-gray-500 text-xs mb-2">Captured Signature:</p>
+                                        <div className="bg-gray-900 rounded-lg p-2 inline-block">
+                                            <img
+                                                src={contract.signatureImage}
+                                                alt="Digital Signature"
+                                                className="h-16 w-auto"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Contract Content */}
                         <div className="bg-gray-800 rounded-lg p-8">
@@ -231,7 +259,7 @@ const Contract = () => {
                         </div>
                     </div>
                 ) : (
-                    /* Contract Display */
+                    /* Contract Display - Unsigned */
                     <div className="space-y-6">
                         {/* Contract Content */}
                         <div className="bg-gray-800 rounded-lg p-8">
@@ -287,58 +315,60 @@ const Contract = () => {
                             </p>
                         </div>
 
-                        {/* E-Signature Section */}
+                        {/* Sign Contract CTA */}
                         <div className="bg-gray-800 rounded-lg p-6 border border-blue-500/30">
-                            <h3 className="text-lg font-bold text-white mb-4">E-Signature</h3>
-
-                            <div className="space-y-4">
+                            <div className="text-center space-y-4">
+                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto">
+                                    <span className="text-3xl">✍️</span>
+                                </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Type your full name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="fullName"
-                                        value={signatureData.fullName}
-                                        onChange={handleInputChange}
-                                        placeholder="Enter your full name as shown in the contract"
-                                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <p className="text-gray-500 text-xs mt-1">
-                                        Must match: <span className="text-white">{project.clientName}</span>
+                                    <h3 className="text-lg font-bold text-white">Ready to Sign?</h3>
+                                    <p className="text-gray-400 text-sm mt-1">
+                                        By signing this contract, you agree to all terms and conditions above.
+                                        A digital signature with your handwritten mark is required.
                                     </p>
                                 </div>
 
-                                <div className="flex items-start gap-3">
-                                    <input
-                                        type="checkbox"
-                                        name="agreedToTerms"
-                                        id="agreedToTerms"
-                                        checked={signatureData.agreedToTerms}
-                                        onChange={handleInputChange}
-                                        className="w-5 h-5 mt-1 text-blue-500 rounded"
-                                    />
-                                    <label htmlFor="agreedToTerms" className="text-gray-300 text-sm">
-                                        I have read and agree to all terms and conditions of this contract, including the payment terms, warranty policy, and termination clauses.
-                                    </label>
+                                <div className="bg-gray-700/50 rounded-lg p-3 text-left">
+                                    <p className="text-gray-400 text-xs font-medium mb-2">What you'll need to provide:</p>
+                                    <ul className="text-gray-300 text-xs space-y-1">
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-blue-400">✓</span> Your full legal name (must match: {project.clientName})
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-blue-400">✓</span> Your handwritten digital signature
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <span className="text-blue-400">✓</span> Legal consent acknowledgment
+                                        </li>
+                                    </ul>
                                 </div>
 
                                 <button
-                                    onClick={handleSign}
-                                    disabled={isSigning || !signatureData.fullName || !signatureData.agreedToTerms}
-                                    className="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => setShowSignatureModal(true)}
+                                    className="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2"
                                 >
-                                    {isSigning ? 'Signing...' : 'Sign Contract'}
+                                    ✍️ Open Signature Pad & Sign
                                 </button>
 
-                                <p className="text-gray-500 text-xs text-center">
-                                    By signing, you agree to the terms and authorize the development work as described.
+                                <p className="text-gray-600 text-xs">
+                                    Your signature is legally binding under RA 8792 (E-Commerce Act of the Philippines).
+                                    IP address, timestamp, and device info will be recorded.
                                 </p>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Signature Modal */}
+            <SignatureModal
+                isOpen={showSignatureModal}
+                onClose={() => setShowSignatureModal(false)}
+                onSign={handleSignContract}
+                clientName={project?.clientName || ''}
+                contractId={contract?.contractId || id}
+            />
         </div>
     );
 };

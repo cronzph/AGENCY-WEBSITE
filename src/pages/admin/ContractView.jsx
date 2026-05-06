@@ -4,6 +4,7 @@ import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { generateContract } from '../../ai/contract';
 import { useToast } from '../../components/shared/Toast';
+import { generateContractPDF } from '../../utils/pdfExport';
 
 const ContractView = () => {
     const { id } = useParams();
@@ -127,6 +128,12 @@ const ContractView = () => {
                                     {isSending ? 'Sending...' : 'Send Contract Link'}
                                 </button>
                                 <button
+                                    onClick={() => generateContractPDF(project, contract)}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg"
+                                >
+                                    📄 Export PDF
+                                </button>
+                                <button
                                     onClick={handlePrint}
                                     className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg"
                                 >
@@ -157,22 +164,58 @@ const ContractView = () => {
                 {/* Signed Contract Details */}
                 {isSigned && (
                     <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6">
-                        <h3 className="text-lg font-semibold text-green-400 mb-2">Signed Contract</h3>
-                        <p className="text-gray-300">
-                            Signed by: <span className="text-white font-medium">{contract.signedBy}</span>
-                        </p>
-                        <p className="text-gray-300">
-                            Signed on: {new Date(contract.signedAt?.toDate()).toLocaleString('en-PH', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                            })}
-                        </p>
-                        <p className="text-gray-300">
-                            Terms agreed: {contract.agreedToTerms ? 'Yes' : 'No'}
-                        </p>
+                        <h3 className="text-lg font-semibold text-green-400 mb-2">✅ Signed Contract</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <p className="text-gray-300">
+                                    Signed by: <span className="text-white font-medium">{contract.signedBy}</span>
+                                </p>
+                                <p className="text-gray-300">
+                                    Signed on: {new Date(contract.signedAt?.toDate()).toLocaleString('en-PH', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })}
+                                </p>
+                                <p className="text-gray-300">
+                                    Terms agreed: {contract.agreedToTerms ? 'Yes' : 'No'}
+                                </p>
+                            </div>
+                            {contract.signatureId && (
+                                <div className="space-y-2">
+                                    <p className="text-gray-300 text-sm">
+                                        Signature ID: <span className="text-white font-mono text-xs">{contract.signatureId}</span>
+                                    </p>
+                                    <p className="text-gray-300 text-sm">
+                                        IP Address: <span className="text-white">{contract.signatureIp}</span>
+                                    </p>
+                                    <p className="text-gray-300 text-sm">
+                                        Timezone: <span className="text-white">{contract.signatureTimezone}</span>
+                                    </p>
+                                    <p className="text-gray-300 text-sm">
+                                        Device: <span className="text-white text-xs">{contract.signatureUserAgent?.substring(0, 60)}...</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        {/* Display captured signature image */}
+                        {contract.signatureImage && (
+                            <div className="mt-4 pt-4 border-t border-green-500/20">
+                                <p className="text-gray-400 text-sm mb-2">🖊️ Captured Digital Signature:</p>
+                                <div className="bg-gray-900 rounded-lg p-3 inline-block border border-gray-700">
+                                    <img
+                                        src={contract.signatureImage}
+                                        alt="Client Digital Signature"
+                                        className="h-20 w-auto"
+                                    />
+                                </div>
+                                <p className="text-gray-500 text-xs mt-2">
+                                    This signature was captured via digital signature pad with legal consent under RA 8792.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -222,8 +265,16 @@ const ContractView = () => {
                                 </div>
                                 <div>
                                     <p className="font-medium mb-4">Client:</p>
+                                    {contract.signatureImage ? (
+                                        <div className="mb-2">
+                                            <img src={contract.signatureImage} alt="Client Signature" className="h-12 w-auto" />
+                                        </div>
+                                    ) : null}
                                     <p className="border-b border-gray-300 pb-2">{contract.signedBy || '________________'}</p>
                                     <p className="text-gray-600 text-sm">Date: {contract.signedAt ? new Date(contract.signedAt.toDate()).toLocaleDateString() : '_______________'}</p>
+                                    {contract.signatureId && (
+                                        <p className="text-gray-500 text-xs mt-1">Signature ID: {contract.signatureId}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
