@@ -84,24 +84,26 @@ const ClientPortal = () => {
 
     const getStatusStep = (status) => {
         if (isStudentClient) {
-            const s = { inquiry: 0, assessed: 0, interview_scheduled: 1, interview_done: 2, proposal_sent: 3, proposal_accepted: 4, awaiting_payment: 5, payment_submitted: 5, payment_confirmed: 5, in_progress: 6, planning: 6, building: 6, for_review: 7, delivered: 8, completed: 8 };
+            // Phases: 0=Inquiry, 1=Waiting for Interview, 2=Interview Done, 3=Proposal, 4=Contract & Payment, 5=In Progress, 6=Review, 7=Delivered
+            const s = { inquiry: 0, assessed: 0, interview_scheduled: 1, interview_done: 2, proposal_sent: 3, proposal_accepted: 4, awaiting_payment: 4, payment_submitted: 4, payment_confirmed: 4, in_progress: 5, planning: 5, building: 5, for_review: 6, delivered: 7, completed: 7 };
             return s[status] ?? 0;
         }
-        const s = { inquiry: 0, assessed: 1, discovery_completed: 2, interview_scheduled: 2, interview_done: 3, proposal_sent: 4, proposal_accepted: 5, awaiting_payment: 6, payment_submitted: 6, payment_confirmed: 6, in_progress: 7, planning: 7, building: 7, for_review: 8, delivered: 9, completed: 9 };
+        // Phases: 0=Inquiry, 1=Discovery, 2=Waiting for Interview, 3=Interview Done, 4=Proposal, 5=Contract & Payment, 6=In Progress, 7=Review, 8=Delivered
+        const s = { inquiry: 0, assessed: 1, discovery_completed: 2, interview_scheduled: 2, interview_done: 3, proposal_sent: 4, proposal_accepted: 5, awaiting_payment: 5, payment_submitted: 5, payment_confirmed: 5, in_progress: 6, planning: 6, building: 6, for_review: 7, delivered: 8, completed: 8 };
         return s[status] ?? 0;
     };
 
     const statusPhases = isStudentClient
-        ? ['Inquiry', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract', 'Payment', 'In Progress', 'Review', 'Delivered']
-        : ['Inquiry', 'Discovery', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract', 'Payment', 'In Progress', 'Review', 'Delivered'];
+        ? ['Inquiry', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered']
+        : ['Inquiry', 'Discovery', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered'];
 
     const getStatusLabel = (status) => {
-        const l = { inquiry: 'Inquiry Submitted', assessed: isStudentClient ? 'Waiting for Interview' : 'Waiting for Discovery', discovery_completed: 'Waiting for Interview', interview_scheduled: 'Interview Scheduled', interview_done: 'Waiting for Proposal', proposal_sent: 'Proposal Ready', proposal_accepted: 'Contract Signed', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Under Review', payment_confirmed: 'Payment Confirmed', in_progress: 'In Progress', planning: 'In Progress — Planning', building: 'In Progress — Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
+        const l = { inquiry: 'Inquiry Submitted', assessed: isStudentClient ? 'Waiting for Interview' : 'Waiting for Discovery', discovery_completed: 'Waiting for Interview', interview_scheduled: 'Interview Scheduled', interview_done: 'Waiting for Proposal', proposal_sent: 'Proposal Ready', proposal_accepted: 'Proposal Accepted — Sign Contract', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Under Review', payment_confirmed: 'Payment Confirmed', in_progress: 'In Progress', planning: 'In Progress — Planning', building: 'In Progress — Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
         return l[status] || 'Processing';
     };
 
     const getStatusShortLabel = (status) => {
-        const l = { inquiry: 'Inquiry', assessed: 'Assessed', discovery_completed: 'Discovery Done', interview_scheduled: 'Interview Set', interview_done: 'Interview Done', proposal_sent: 'Proposal Ready', proposal_accepted: 'Contract Signed', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Review', payment_confirmed: 'Payment OK', in_progress: 'In Progress', planning: 'Planning', building: 'Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
+        const l = { inquiry: 'Inquiry', assessed: 'Assessed', discovery_completed: 'Discovery Done', interview_scheduled: 'Interview Set', interview_done: 'Interview Done', proposal_sent: 'Proposal Ready', proposal_accepted: 'Sign Contract', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Review', payment_confirmed: 'Payment OK', in_progress: 'In Progress', planning: 'Planning', building: 'Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
         return l[status] || 'Processing';
     };
 
@@ -114,7 +116,7 @@ const ClientPortal = () => {
 
     const isProposalBeingPrepared = () => {
         const status = projectDetails?.status;
-        return (status === 'assessed' || status === 'interview_done') && !projectDetails?.proposalData;
+        return (status === 'assessed' || status === 'interview_done' || status === 'discovery_completed') && !projectDetails?.proposalData;
     };
 
     const getActionsForStatus = (status) => {
@@ -123,10 +125,14 @@ const ClientPortal = () => {
             discovery_completed: [{ label: 'View Discovery', link: `/discovery/${selectedProject?.id}`, icon: '✅' }],
             interview_scheduled: [{ label: 'View Interview Details', link: `/interview/${selectedProject?.id}`, icon: '🎤' }],
             interview_done: [{ label: 'Interview Results', link: `/interview/${selectedProject?.id}`, icon: '📋' }],
-            proposal_sent: [{ label: 'View Proposal', link: `/proposal/${selectedProject?.id}`, icon: '📄' }],
-            proposal_accepted: [{ label: 'View Contract', link: `/contract/${selectedProject?.id}`, icon: '📝' }],
-            awaiting_payment: [{ label: 'Make Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
+            proposal_sent: [{ label: 'View & Accept Proposal', link: `/proposal/${selectedProject?.id}`, icon: '📄' }],
+            proposal_accepted: [{ label: 'Sign Contract', link: `/contract/${selectedProject?.id}`, icon: '✍️' }],
+            awaiting_payment: [
+                { label: 'Make Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' },
+                { label: 'View Contract', link: `/contract/${selectedProject?.id}`, icon: '📝' },
+            ],
             payment_submitted: [{ label: 'View Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
+            payment_confirmed: [{ label: 'View Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
             in_progress: [],
             planning: [{ label: 'View Progress', link: '/portal', icon: '📊' }],
             building: [{ label: 'View Progress', link: '/portal', icon: '📊' }],
@@ -184,7 +190,7 @@ const ClientPortal = () => {
         <div className="min-h-screen bg-gray-900 flex flex-col">
 
             {/* ── Top Header ── */}
-            <header className="bg-gray-800 border-b border-gray-700 z-30 sticky top-0">
+            <header className="bg-gray-800 border-b border-gray-700 z-50 sticky top-0">
                 <div className="px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
                         <button
@@ -197,7 +203,7 @@ const ClientPortal = () => {
                             </svg>
                         </button>
                         <h1 className="text-xl font-bold text-white">Cronz<span className="text-blue-400">PH</span></h1>
-                        {clientData && <span className="text-gray-400 text-xs hidden sm:block truncate max-w-[200px]">| {clientData.email}</span>}
+                        {clientData && <span className="text-gray-400 text-xs truncate max-w-[120px] sm:max-w-[200px]">| {clientData.email}</span>}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <Link to="/inquiry" className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors text-xs sm:text-sm">
@@ -212,19 +218,21 @@ const ClientPortal = () => {
                         </button>
                     </div>
                 </div>
-                {clientData && <p className="text-gray-500 text-xs px-3 pb-2 truncate sm:hidden">{clientData.email}</p>}
             </header>
 
             {/* ── Body ── */}
             <div className="flex flex-1 min-h-0">
 
-                {/* Mobile overlay */}
+                {/* Mobile overlay — sits above content (z-30) but below sidebar (z-40) */}
                 {sidebarOpen && (
-                    <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+                    <div
+                        className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+                        onClick={() => setSidebarOpen(false)}
+                    />
                 )}
 
                 {/* ── Sidebar ── */}
-                <aside className={`fixed lg:sticky top-[57px] left-0 z-20 w-64 bg-gray-800 border-r border-gray-700 flex flex-col transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`} style={{ height: 'calc(100vh - 57px)' }}>
+                <aside className={`fixed lg:sticky top-[57px] left-0 z-40 w-64 bg-gray-800 border-r border-gray-700 flex flex-col transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`} style={{ height: 'calc(100vh - 57px)' }}>
                     <div className="p-4 border-b border-gray-700 shrink-0">
                         <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-0.5">My Projects</p>
                         <p className="text-xs text-gray-500">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
@@ -258,26 +266,11 @@ const ClientPortal = () => {
                         })}
                     </nav>
 
-                    <div className="p-3 border-t border-gray-700 space-y-2 shrink-0">
-                        <Link
-                            to="/inquiry"
-                            onClick={() => setSidebarOpen(false)}
-                            className="flex items-center gap-2 w-full px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg text-sm transition-colors border border-blue-500/30"
-                        >
-                            <span>+</span><span>New Project</span>
-                        </Link>
-                        <button
-                            onClick={() => { setSidebarOpen(false); setShowLogoutConfirm(true); }}
-                            className="flex items-center gap-2 w-full px-3 py-2 bg-gray-700/50 hover:bg-red-900/30 text-gray-400 hover:text-red-400 rounded-lg text-sm transition-colors border border-gray-600/30 hover:border-red-500/30"
-                        >
-                            <span>🚪</span><span>Logout</span>
-                        </button>
-                    </div>
                 </aside>
 
                 {/* ── Main Content ── */}
                 <main className="flex-1 overflow-y-auto">
-                    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+                    <div className="w-full px-4 sm:px-6 py-4 sm:py-6">
 
                         {isLoading ? (
                             <div className="flex items-center justify-center py-20">
@@ -346,6 +339,30 @@ const ClientPortal = () => {
                                     </div>
                                 )}
 
+                                {/* Sign Contract Notice */}
+                                {projectDetails.status === 'proposal_accepted' && (
+                                    <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-4 sm:p-6 border border-green-500/30">
+                                        <div className="flex items-start gap-3 sm:gap-4">
+                                            <div className="relative shrink-0">
+                                                <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+                                                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-green-500/10 rounded-full flex items-center justify-center border-2 border-green-500/30">
+                                                    <span className="text-xl sm:text-2xl">✍️</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-white font-semibold text-sm sm:text-base mb-1">Action Required: Sign Your Contract</h3>
+                                                <p className="text-gray-300 text-xs sm:text-sm leading-relaxed mb-3">You've accepted the proposal! Please review and sign your contract to proceed to payment.</p>
+                                                <Link
+                                                    to={`/contract/${selectedProject?.id}`}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
+                                                >
+                                                    ✍️ Sign Contract Now
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Interview Scheduled Notice */}
                                 {projectDetails.status === 'interview_scheduled' && (
                                     <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-xl p-4 sm:p-6 border border-amber-500/30">
@@ -371,23 +388,89 @@ const ClientPortal = () => {
 
                                 {/* Progress Tracker */}
                                 <div className="bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-700/50">
-                                    <h3 className="text-base sm:text-lg font-semibold text-white mb-4">Project Progress</h3>
-                                    <div className="h-2 bg-gray-700 rounded-full mb-3">
-                                        <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                                    </div>
-                                    <div className="overflow-x-auto -mx-1 px-1 pb-1 scrollbar-hide">
-                                        <div className="flex gap-0" style={{ minWidth: `${statusPhases.length * 60}px` }}>
-                                            {statusPhases.map((phase, idx) => {
-                                                const isActive = idx <= getStatusStep(projectDetails.status);
-                                                const isCurrent = idx === getStatusStep(projectDetails.status);
-                                                return (
-                                                    <div key={phase} className="flex-1 flex flex-col items-center">
-                                                        <div className={`w-3 h-3 rounded-full mb-1 transition-colors ${isCurrent ? 'bg-blue-400 ring-2 ring-blue-400/30' : isActive ? 'bg-blue-500' : 'bg-gray-600'}`}></div>
-                                                        <span className={`text-[10px] sm:text-xs text-center leading-tight ${isCurrent ? 'text-blue-400 font-medium' : isActive ? 'text-blue-400/70' : 'text-gray-500'}`}>{phase}</span>
+                                    <h3 className="text-base sm:text-lg font-semibold text-white mb-5">Project Progress</h3>
+                                    <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+                                        {(() => {
+                                            const currentStep = getStatusStep(projectDetails.status);
+                                            const n = statusPhases.length;
+                                            const CIRCLE = 32;
+                                            const HALF = CIRCLE / 2;
+                                            const STEP_MIN = 64; // min px per step column
+                                            const totalMin = n * STEP_MIN;
+                                            return (
+                                                <div style={{ position: 'relative', minWidth: totalMin, paddingBottom: 4 }}>
+                                                    {/* Connector lines */}
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: HALF,
+                                                        left: `${(0.5 / n) * 100}%`,
+                                                        right: `${(0.5 / n) * 100}%`,
+                                                        height: 2,
+                                                        display: 'flex',
+                                                        zIndex: 0,
+                                                    }}>
+                                                        {statusPhases.slice(0, -1).map((_, idx) => {
+                                                            const isDone = idx < currentStep;
+                                                            return (
+                                                                <div key={`line-${idx}`} style={{
+                                                                    flex: 1,
+                                                                    height: '100%',
+                                                                    backgroundColor: isDone ? '#22c55e' : '#4b5563',
+                                                                    transition: 'background-color 0.3s',
+                                                                }} />
+                                                            );
+                                                        })}
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    {/* Step nodes */}
+                                                    <div style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 1 }}>
+                                                        {statusPhases.map((phase, idx) => {
+                                                            const isDone = idx < currentStep;
+                                                            const isCurrent = idx === currentStep;
+                                                            return (
+                                                                <div key={phase} style={{ flex: 1, minWidth: STEP_MIN, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                                    {/* Circle */}
+                                                                    <div style={{
+                                                                        width: CIRCLE, height: CIRCLE, borderRadius: '50%',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: 11, fontWeight: 700, border: '2px solid',
+                                                                        flexShrink: 0,
+                                                                        backgroundColor: isDone ? '#22c55e' : isCurrent ? '#3b82f6' : '#374151',
+                                                                        borderColor: isDone ? '#22c55e' : isCurrent ? '#60a5fa' : '#4b5563',
+                                                                        color: isDone || isCurrent ? '#fff' : '#9ca3af',
+                                                                        boxShadow: isDone ? '0 0 8px rgba(34,197,94,0.4)' : isCurrent ? '0 0 12px rgba(59,130,246,0.6)' : 'none',
+                                                                        transition: 'all 0.3s',
+                                                                    }}>
+                                                                        {isDone ? (
+                                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        ) : (
+                                                                            <span>{idx + 1}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {/* Label */}
+                                                                    <span style={{
+                                                                        marginTop: 6,
+                                                                        fontSize: 11,
+                                                                        textAlign: 'center',
+                                                                        lineHeight: 1.3,
+                                                                        width: '100%',
+                                                                        padding: '0 4px',
+                                                                        color: isDone ? '#4ade80' : isCurrent ? '#60a5fa' : '#9ca3af',
+                                                                        fontWeight: isCurrent ? 700 : 600,
+                                                                        whiteSpace: 'normal',
+                                                                        wordBreak: 'break-word',
+                                                                        overflowWrap: 'break-word',
+                                                                    }}>
+                                                                        {phase}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 

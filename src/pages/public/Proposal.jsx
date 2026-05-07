@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getAgencyName } from '../../utils/settings';
@@ -8,6 +8,7 @@ import { generateProposalPDF } from '../../utils/pdfExport';
 
 const Proposal = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [proposal, setProposal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -94,7 +95,9 @@ const Proposal = () => {
         id: id,
         clientName: proposal?.clientName,
       });
-      setSigned(true);
+
+      // Navigate to contract page after accepting proposal
+      navigate(`/contract/${id}`);
     } catch (err) {
       console.error('Error accepting proposal:', err);
       setError('Failed to accept proposal');
@@ -193,11 +196,16 @@ const Proposal = () => {
   const aiAssessment = proposal?.aiAssessment || {};
   const tierPrice = getTierPrice(proposal?.saasTier);
 
+  // Always use aiAssessment as source of truth for pricing (overrides stale proposalData)
+  const trueTotalCost = aiAssessment.suggestedPrice || proposalData?.investmentSummary?.totalCost || 0;
+  const trueDownpayment = aiAssessment.downpayment || (trueTotalCost * 0.5);
+  const trueFinalPayment = aiAssessment.finalPayment || (trueTotalCost * 0.5);
+
   const currentDate = new Date();
   const currentMonthYear = currentDate.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
 
   // Calculate totals
-  const pricingTotal = proposalData?.pricingBreakdown?.reduce((sum, item) => sum + (item.price || 0), 0) || 0;
+  const pricingTotal = proposalData?.pricingBreakdown?.reduce((sum, item) => sum + (item.price || 0), 0) || trueTotalCost;
   const timelineTotal = proposalData?.timeline?.reduce((sum, item) => {
     const match = item.duration?.match(/(\d+)/);
     return sum + (match ? parseInt(match[1]) : 0);
@@ -309,15 +317,15 @@ const Proposal = () => {
               <tbody>
                 <tr className="border-b border-gray-700">
                   <td className="py-3 text-gray-300">Total Project Cost</td>
-                  <td className="py-3 text-right text-green-400 font-bold text-xl">{formatCurrency(proposalData.investmentSummary?.totalCost)}</td>
+                  <td className="py-3 text-right text-green-400 font-bold text-xl">{formatCurrency(trueTotalCost)}</td>
                 </tr>
                 <tr className="border-b border-gray-700">
                   <td className="py-3 text-gray-300">Downpayment (50%)</td>
-                  <td className="py-3 text-right text-white font-semibold">{formatCurrency(proposalData.investmentSummary?.downpayment)}</td>
+                  <td className="py-3 text-right text-white font-semibold">{formatCurrency(trueDownpayment)}</td>
                 </tr>
                 <tr className="border-b border-gray-700">
                   <td className="py-3 text-gray-300">Final Payment</td>
-                  <td className="py-3 text-right text-white font-semibold">{formatCurrency(proposalData.investmentSummary?.finalPayment)}</td>
+                  <td className="py-3 text-right text-white font-semibold">{formatCurrency(trueFinalPayment)}</td>
                 </tr>
                 <tr>
                   <td className="py-3 text-gray-300">Payment Methods</td>
@@ -514,7 +522,7 @@ const Proposal = () => {
                 </div>
                 <div>
                   <p className="text-gray-400">Total:</p>
-                  <p className="text-green-400 font-bold">{formatCurrency(proposalData?.investmentSummary?.totalCost)}</p>
+                  <p className="text-green-400 font-bold">{formatCurrency(trueTotalCost)}</p>
                 </div>
               </div>
 
@@ -548,7 +556,7 @@ const Proposal = () => {
                 </div>
                 <div className="col-span-2">
                   <p className="text-gray-400">Total:</p>
-                  <p className="text-green-400 font-bold text-lg">{formatCurrency(proposalData?.investmentSummary?.totalCost)}</p>
+                  <p className="text-green-400 font-bold text-lg">{formatCurrency(trueTotalCost)}</p>
                 </div>
               </div>
 

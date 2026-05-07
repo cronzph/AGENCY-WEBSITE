@@ -293,7 +293,7 @@ const Discovery = () => {
                 businessName: projectData.businessName,
             });
 
-            navigate(`/delivery/${id}?step=discovery-complete`);
+            navigate(`/portal`);
         } catch (err) {
             console.error('Error saving discovery:', err);
             setError('Failed to save your responses. Please try again.');
@@ -463,8 +463,8 @@ const Discovery = () => {
                                     <div key={featureId} className="flex items-center justify-between p-2 bg-gray-700/50 rounded">
                                         <span className="text-white text-sm">{featureId}</span>
                                         <span className={`px-2 py-0.5 rounded text-xs ${priority === 'must-have' ? 'bg-red-500/20 text-red-400' :
-                                                priority === 'nice-to-have' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-gray-500/20 text-gray-400'
+                                            priority === 'nice-to-have' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                'bg-gray-500/20 text-gray-400'
                                             }`}>{priority}</span>
                                     </div>
                                 ))}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 
-import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useToast } from '../../components/shared/Toast';
 import { callAIJson } from '../../ai/callAI';
@@ -189,13 +189,27 @@ const Projects = () => {
   const handleGenerateProposal = async (project) => {
     setGeneratingId(project.id);
     try {
-      const proposalData = await generateProposal(project);
+      // Flatten aiAssessment fields into the data passed to the generator
+      const ai = project.aiAssessment || {};
+      const generatorInput = {
+        businessName: project.businessName,
+        projectDescription: project.projectDescription,
+        projectType: ai.projectType || project.servicesNeeded?.[0] || '',
+        complexity: ai.complexity || 'medium',
+        estimatedDays: ai.estimatedDays || 30,
+        suggestedPrice: ai.suggestedPrice || 0,
+        downpayment: ai.downpayment || (ai.suggestedPrice ? ai.suggestedPrice * 0.5 : 0),
+        finalPayment: ai.finalPayment || (ai.suggestedPrice ? ai.suggestedPrice * 0.5 : 0),
+        scopeSummary: ai.scopeSummary || '',
+        technologiesNeeded: ai.technologiesNeeded || [],
+        warnings: ai.warnings || [],
+      };
+      const proposalData = await generateProposal(generatorInput);
       await updateDoc(doc(db, 'projects', project.id), {
         proposalData,
-        status: 'proposal_sent',
         proposalGeneratedAt: new Date().toISOString()
       });
-      showToast('Proposal generated successfully!', 'success');
+      showToast('Proposal generated! Use "Send Proposal" to notify the client.', 'success');
     } catch (err) {
       console.error('Proposal generation failed:', err);
       showToast('Proposal generation failed', 'error');
@@ -380,9 +394,10 @@ const Projects = () => {
         warnings: editForm.warnings,
       };
 
+      // Clear old proposalData so it must be regenerated with new values
       await updateDoc(projectRef, {
         aiAssessment,
-        status: 'assessed',
+        proposalData: deleteField(),
         aiAssessedAt: new Date(),
       });
 
@@ -599,12 +614,7 @@ const Projects = () => {
       case 'proposal_sent':
         return { label: 'Waiting for Client', color: 'bg-gray-600', action: null, disabled: true };
       case 'proposal_accepted':
-        return {
-          label: 'Send Payment Link',
-          color: 'bg-green-600 hover:bg-green-500',
-          action: () => handleSendPaymentLink(project.id),
-          loading: isSending === project.id,
-        };
+        return { label: 'Waiting for Contract Signing', color: 'bg-gray-600', action: null, disabled: true };
       case 'awaiting_payment':
         return { label: 'Awaiting Payment', color: 'bg-orange-600', action: null, disabled: true };
       case 'payment_submitted':
@@ -660,7 +670,7 @@ const Projects = () => {
   };
 
   const proposalStatuses = ['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
-  const contractStatuses = ['payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+  const contractStatuses = ['proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
   const paymentStatuses = ['awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
 
   const getProjectDocuments = (project) => {

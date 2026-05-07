@@ -63,10 +63,15 @@ const Payment = () => {
 
         const projectData = { id: projectSnap.id, ...projectSnap.data() };
 
-        // Allow viewing payment page for all statuses from proposal_accepted onwards
-        const allowedStatuses = ['proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+        // Allow viewing payment page only after contract is signed
+        const allowedStatuses = ['contract_signed', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
         if (!allowedStatuses.includes(projectData.status)) {
-          navigate(`/proposal/${id}`);
+          // Redirect to contract if proposal accepted but not yet signed
+          if (projectData.status === 'proposal_accepted') {
+            navigate(`/contract/${id}`);
+          } else {
+            navigate(`/proposal/${id}`);
+          }
           return;
         }
 

@@ -57,7 +57,7 @@ const Contract = () => {
                     legalConsent: signatureData.legalConsent,
                     consentText: signatureData.consentText,
                 },
-                status: 'contract_signed',
+                status: 'awaiting_payment',
                 contractSignedAt: serverTimestamp(),
             });
 

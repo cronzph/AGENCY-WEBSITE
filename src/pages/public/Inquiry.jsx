@@ -24,6 +24,9 @@ const Inquiry = () => {
     paymentType: '',
     budgetRange: '',
     selectedTier: '',
+    quickFix: false,
+    quickFixType: '', // 'fix' | 'upgrade'
+    featureDescription: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,6 +69,9 @@ const Inquiry = () => {
             paymentType: d.paymentPreference || '',
             budgetRange: d.budgetRange || '',
             selectedTier: d.saasTier || '',
+            quickFix: d.quickFix ?? false,
+            quickFixType: d.quickFixType || '',
+            featureDescription: d.featureDescription || '',
           });
         }
       } catch (err) {
@@ -77,27 +83,46 @@ const Inquiry = () => {
 
 
 
-  const servicesList = [
-    'Website / Landing Page',
-    'Inventory System',
-    'Appointment Booking System',
-    'Paper to Digital Forms',
-    'Payroll / HR System',
-    'POS System',
-    'Custom Automation',
-    'Capstone Project',
-    'School Activity',
-    'Simple Fix',
-    'Rush Service (Quick Fix)',
-    'Other',
+  // Categorized services for Business Owners
+  const businessServiceCategories = [
+    {
+      label: '🌐 Web & Digital',
+      services: [
+        'Website / Landing Page',
+        'Inventory System',
+        'Appointment Booking System',
+        'POS System',
+        'Paper to Digital Forms',
+      ],
+    },
+    {
+      label: '⚙️ Automation & AI',
+      services: ['Custom Automation', 'Payroll / HR System'],
+    },
+    {
+      label: '🎮 Game Dev',
+      services: ['Game Development'],
+    },
+    {
+      label: '🔌 Arduino / IoT',
+      services: ['Arduino / IoT Project'],
+    },
+  ];
+
+  // Services for Students
+  const studentServiceCategories = [
+    {
+      label: '🎓 School Projects',
+      services: ['Capstone Project', 'School Activity / Event System'],
+    },
   ];
 
   const rushServices = [
-    { name: 'Minor bug fix', price: '₱300-₱500' },
-    { name: 'UI/layout fix', price: '₱500-₱1,000' },
-    { name: 'Content update', price: '₱200-₱500' },
-    { name: 'Feature tweak', price: '₱1,000-₱2,500' },
-    { name: 'Major bug fix', price: '₱2,500-₱5,000' },
+    { name: 'Minor bug fix', price: '₱300–₱500' },
+    { name: 'UI/layout fix', price: '₱500–₱1,000' },
+    { name: 'Content update', price: '₱200–₱500' },
+    { name: 'Feature tweak', price: '₱1,000–₱2,500' },
+    { name: 'Major bug fix', price: '₱2,500–₱5,000' },
     { name: 'Rush (same day)', price: '+50% surcharge' },
   ];
 
@@ -156,18 +181,30 @@ const Inquiry = () => {
     if (name === 'paymentType' && value === 'build-only') {
       updated = { ...formData, paymentType: value, selectedTier: '' };
     }
-    // When switching client type, clear the irrelevant field
+    // When switching client type, clear the irrelevant field + reset services
     if (name === 'clientType') {
       if (value === 'business') {
         updated.studentProjectType = '';
+        updated.services = [];
       } else if (value === 'student') {
         updated.businessName = '';
+        updated.services = [];
       }
     }
     setFormData(updated);
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
+  };
+
+  const handleQuickFixToggle = () => {
+    setFormData(prev => ({
+      ...prev,
+      quickFix: !prev.quickFix,
+      quickFixType: '',
+      featureDescription: '',
+      services: !prev.quickFix ? [] : prev.services,
+    }));
   };
 
   const handleCheckboxChange = (service) => {
@@ -235,6 +272,9 @@ const Inquiry = () => {
   const isFormValid = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^09\d{9}$/;
+    const servicesOk = formData.quickFix
+      ? (formData.quickFixType && (formData.quickFixType !== 'upgrade' || formData.featureDescription?.trim()))
+      : formData.services.length > 0;
     return (
       formData.clientType &&
       formData.fullName.trim() &&
@@ -242,7 +282,7 @@ const Inquiry = () => {
       (formData.clientType !== 'student' || formData.studentProjectType) &&
       emailRegex.test(formData.email.trim()) &&
       phoneRegex.test(formData.phone.trim()) &&
-      formData.services.length > 0 &&
+      servicesOk &&
       formData.projectDescription.trim() &&
       formData.timeline &&
       formData.paymentType &&
@@ -269,7 +309,12 @@ const Inquiry = () => {
       else if (!phoneRegex.test(formData.phone.trim())) newErrors.phone = 'Please enter a valid phone (e.g., 09123456789)';
     } else if (step === 2) {
       // Step 2: Project Info
-      if (formData.services.length === 0) newErrors.services = 'Select at least one service';
+      if (formData.quickFix) {
+        if (!formData.quickFixType) newErrors.quickFixType = 'Please select Quick Fix or System Upgrade';
+        if (formData.quickFixType === 'upgrade' && !formData.featureDescription?.trim()) newErrors.featureDescription = 'Please describe the feature you want to add';
+      } else {
+        if (formData.services.length === 0) newErrors.services = 'Select at least one service';
+      }
       if (!formData.projectDescription?.trim()) newErrors.projectDescription = 'Project Description is required';
       if (!formData.timeline) newErrors.timeline = 'Timeline is required';
     } else if (step === 3) {
@@ -332,10 +377,16 @@ const Inquiry = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setError('');
+    // Guard: only submit when on the final step
+    if (currentStep !== totalSteps) return;
     if (!validateForm()) return;
     setIsSubmitting(true);
+
+    const resolvedServices = formData.quickFix
+      ? (formData.quickFixType === 'fix' ? ['Quick Fix'] : ['System Upgrade'])
+      : formData.services;
 
     const payload = {
       clientType: formData.clientType,
@@ -344,12 +395,15 @@ const Inquiry = () => {
       studentProjectType: formData.clientType === 'student' ? formData.studentProjectType : '',
       email: sanitizeText(formData.email),
       phone: sanitizeText(formData.phone),
-      servicesNeeded: formData.services,
+      servicesNeeded: resolvedServices,
       projectDescription: sanitizeText(formData.projectDescription),
       preferredTimeline: formData.timeline,
       paymentPreference: formData.paymentType,
       budgetRange: formData.budgetRange,
-      saasTier: formData.selectedTier || null,
+      saasTier: formData.selectedTier || '',
+      quickFix: formData.quickFix ?? false,
+      quickFixType: formData.quickFix ? (formData.quickFixType || '') : '',
+      featureDescription: (formData.quickFix && formData.quickFixType === 'upgrade') ? sanitizeText(formData.featureDescription) : '',
       updatedAt: serverTimestamp(),
     };
 
@@ -412,14 +466,15 @@ const Inquiry = () => {
       studentProjectType: '',
       email: '',
       phone: '',
-      businessType: '',
-      monthlyIncome: '',
       services: [],
       projectDescription: '',
       timeline: '',
       paymentType: '',
       budgetRange: '',
       selectedTier: '',
+      quickFix: false,
+      quickFixType: '',
+      featureDescription: '',
     });
     setCurrentStep(1);
     setShowSuccess(false);
@@ -505,7 +560,7 @@ const Inquiry = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
           {error && (
             <div className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
               {error}
@@ -650,59 +705,144 @@ const Inquiry = () => {
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Project Information</h2>
 
+              {/* ── Quick Fix / Repair Toggle ── */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Services Needed <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {servicesList.map((service) => (
-                    <label key={service} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={formData.services.includes(service)}
-                        onChange={() => handleCheckboxChange(service)}
-                        className="w-4 h-4 text-blue-500 rounded"
-                      />
-                      <span className="text-white">{service}</span>
-                    </label>
-                  ))}
-                </div>
-                {errors.services && <p className="text-red-500 text-sm mt-1">{errors.services}</p>}
+                <button
+                  type="button"
+                  onClick={handleQuickFixToggle}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-200 ${formData.quickFix
+                    ? 'bg-orange-500/15 border-orange-500 text-orange-300'
+                    : 'bg-gray-700/60 border-gray-600 text-gray-300 hover:border-orange-500/50 hover:text-orange-300'
+                    }`}
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <span className="text-lg">⚡</span>
+                    I just need something fixed or improved
+                  </span>
+                  {/* Proper toggle pill using inline styles */}
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    width: 44, height: 24, borderRadius: 12, padding: 3,
+                    backgroundColor: formData.quickFix ? '#f97316' : '#4b5563',
+                    transition: 'background-color 0.2s', flexShrink: 0,
+                  }}>
+                    <span style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                      transform: formData.quickFix ? 'translateX(20px)' : 'translateX(0)',
+                      transition: 'transform 0.2s', display: 'block',
+                    }} />
+                  </span>
+                </button>
               </div>
 
-              {/* Rush Services Pricing Info */}
-              {formData.services.includes('Rush Service (Quick Fix)') && (
-                <div className="mb-6 bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-                  <h4 className="text-orange-400 font-semibold mb-3 flex items-center gap-2">
-                    ⚡ Rush / Quick Fix Pricing Guide
-                  </h4>
-                  <p className="text-gray-300 text-sm mb-3">
-                    Fast, affordable solutions for common website and system issues:
-                  </p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-orange-500/20">
-                          <th className="text-left py-2 text-gray-400">Service</th>
-                          <th className="text-right py-2 text-gray-400">Price Range</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rushServices.map((service, idx) => (
-                          <tr key={idx} className="border-b border-gray-700/50">
-                            <td className="py-2 text-gray-300">{service.name}</td>
-                            <td className="py-2 text-right text-orange-300 font-medium">{service.price}</td>
-                          </tr>
+              {/* ── Quick Fix Mode ── */}
+              {formData.quickFix ? (
+                <div className="mb-6 space-y-3">
+                  <p className="text-gray-400 text-sm mb-3">What kind of fix do you need?</p>
+
+                  {/* Quick Fix card */}
+                  <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.quickFixType === 'fix'
+                    ? 'bg-orange-500/10 border-orange-500 text-white'
+                    : 'bg-gray-700/60 border-gray-600 text-gray-300 hover:border-orange-400/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="quickFixType"
+                      value="fix"
+                      checked={formData.quickFixType === 'fix'}
+                      onChange={handleInputChange}
+                      className="mt-1 w-4 h-4 text-orange-500"
+                    />
+                    <div>
+                      <p className="font-semibold flex items-center gap-2">🔧 Quick Fix</p>
+                      <p className="text-sm text-gray-400 mt-0.5">Fix a bug or small issue in an existing system</p>
+                      <p className="text-xs text-orange-300 mt-1 font-medium">Starts at ₱300 — resolved within 24–48hrs</p>
+                    </div>
+                  </label>
+
+                  {/* System Upgrade card */}
+                  <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.quickFixType === 'upgrade'
+                    ? 'bg-blue-500/10 border-blue-500 text-white'
+                    : 'bg-gray-700/60 border-gray-600 text-gray-300 hover:border-blue-400/50'
+                    }`}>
+                    <input
+                      type="radio"
+                      name="quickFixType"
+                      value="upgrade"
+                      checked={formData.quickFixType === 'upgrade'}
+                      onChange={handleInputChange}
+                      className="mt-1 w-4 h-4 text-blue-500"
+                    />
+                    <div className="w-full">
+                      <p className="font-semibold flex items-center gap-2">🔼 System Upgrade</p>
+                      <p className="text-sm text-gray-400 mt-0.5">Add a new feature to an existing system</p>
+                      {formData.quickFixType === 'upgrade' && (
+                        <div className="mt-3">
+                          <label className="block text-xs text-gray-400 mb-1">Describe the feature you want to add <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            name="featureDescription"
+                            value={formData.featureDescription}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Add SMS notification to my booking system"
+                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          {errors.featureDescription && <p className="text-red-500 text-xs mt-1">{errors.featureDescription}</p>}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                  {errors.quickFixType && <p className="text-red-500 text-sm mt-1">{errors.quickFixType}</p>}
+                </div>
+              ) : (
+                /* ── Normal Service Selection ── */
+                <div className="mb-6">
+                  {!formData.clientType ? (
+                    <div className="p-4 bg-gray-700/40 rounded-xl border border-gray-600/50 text-center">
+                      <p className="text-gray-400 text-sm">Please go back to Step 1 and select your client type first.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium text-gray-300 mb-3">
+                        Services Needed <span className="text-red-500">*</span>
+                      </label>
+                      <div className="space-y-5">
+                        {(formData.clientType === 'business' ? businessServiceCategories : studentServiceCategories).map((cat) => (
+                          <div key={cat.label}>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{cat.label}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {cat.services.map((service) => {
+                                const checked = formData.services.includes(service);
+                                return (
+                                  <label
+                                    key={service}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${checked
+                                      ? 'bg-blue-600/15 border-blue-500 text-white'
+                                      : 'bg-gray-700/60 border-gray-600 text-gray-300 hover:border-blue-400/50 hover:text-white'
+                                      }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => handleCheckboxChange(service)}
+                                      className="w-4 h-4 text-blue-500 rounded"
+                                    />
+                                    <span className="text-sm font-medium">{service}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-gray-500 text-xs mt-3">
-                    💡 Rush service guarantees same-day resolution for critical issues. Describe your issue in the project description below.
-                  </p>
+                      </div>
+                      {errors.services && <p className="text-red-500 text-sm mt-2">{errors.services}</p>}
+                    </>
+                  )}
                 </div>
               )}
 
+              {/* ── Project Description ── */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Project Description <span className="text-red-500">*</span>
@@ -718,6 +858,7 @@ const Inquiry = () => {
                 {errors.projectDescription && <p className="text-red-500 text-sm mt-1">{errors.projectDescription}</p>}
               </div>
 
+              {/* ── Preferred Timeline ── */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Preferred Timeline <span className="text-red-500">*</span>
@@ -869,7 +1010,7 @@ const Inquiry = () => {
             {currentStep < totalSteps ? (
               <button
                 type="button"
-                onClick={handleNextStep}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNextStep(); }}
                 disabled={isCheckingEmail}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -877,7 +1018,8 @@ const Inquiry = () => {
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSubmit(e); }}
                 disabled={isSubmitting || !isFormValid()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
