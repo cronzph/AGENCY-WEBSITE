@@ -4,6 +4,7 @@ import { db } from '../../firebase/config';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { fetchTemplateById, fetchTemplates } from '../../utils/templateData';
 import TemplateInquiryModal from '../../components/client/TemplateInquiryModal';
+import PreInquiryModal from '../../components/client/PreInquiryModal';
 import ImagePreviewModal from '../../components/shared/ImagePreviewModal';
 
 const TemplateDetail = () => {
@@ -12,6 +13,7 @@ const TemplateDetail = () => {
   const [relatedTemplates, setRelatedTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [preInquiryOpen, setPreInquiryOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
@@ -114,21 +116,21 @@ const TemplateDetail = () => {
               <Link to="/templates" className="text-white font-medium">Templates</Link>
               <Link to="/portal/login" className="text-gray-300 hover:text-white transition-colors">Client Portal</Link>
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={() => template.status === 'coming' ? setPreInquiryOpen(true) : setModalOpen(true)}
                 className="px-5 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
-                style={{ background: template.color }}
+                style={{ background: template.status === 'coming' ? '#d97706' : template.color }}
               >
-                Inquire Now
+                {template.status === 'coming' ? '🔔 Notify Me' : 'Inquire Now'}
               </button>
             </div>
             {/* Mobile Menu Button */}
             <div className="flex md:hidden items-center gap-3">
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={() => template.status === 'coming' ? setPreInquiryOpen(true) : setModalOpen(true)}
                 className="px-4 py-2 rounded-lg font-medium text-sm text-white transition-all hover:opacity-90"
-                style={{ background: template.color }}
+                style={{ background: template.status === 'coming' ? '#d97706' : template.color }}
               >
-                Inquire Now
+                {template.status === 'coming' ? '🔔 Notify Me' : 'Inquire Now'}
               </button>
               <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -346,14 +348,29 @@ const TemplateDetail = () => {
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setModalOpen(true)}
+                    onClick={() => template.status === 'coming' ? setPreInquiryOpen(true) : setModalOpen(true)}
                     className="flex-1 py-4 rounded-xl font-bold text-lg text-white transition-all hover:opacity-90 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3"
-                    style={{ background: `linear-gradient(135deg, ${template.color}, ${template.color}cc)` }}
+                    style={{
+                      background: template.status === 'coming'
+                        ? 'linear-gradient(135deg, #d97706, #b45309)'
+                        : `linear-gradient(135deg, ${template.color}, ${template.color}cc)`
+                    }}
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Inquire This Template
+                    {template.status === 'coming' ? (
+                      <>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        Notify Me When Available
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Inquire This Template
+                      </>
+                    )}
                   </button>
                   <Link
                     to="/inquiry"
@@ -463,11 +480,17 @@ const TemplateDetail = () => {
 
           <div className="text-center mt-12">
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={() => template.status === 'coming' ? setPreInquiryOpen(true) : setModalOpen(true)}
               className="px-10 py-4 rounded-xl font-bold text-lg text-white transition-all hover:opacity-90 hover:scale-105"
-              style={{ background: `linear-gradient(135deg, ${template.color}, ${template.color}cc)` }}
+              style={{
+                background: template.status === 'coming'
+                  ? 'linear-gradient(135deg, #d97706, #b45309)'
+                  : `linear-gradient(135deg, ${template.color}, ${template.color}cc)`
+              }}
             >
-              Inquire This Template — {template.setupTime} setup
+              {template.status === 'coming'
+                ? '🔔 Notify Me When Available'
+                : `Inquire This Template — ${template.setupTime} setup`}
             </button>
           </div>
         </div>
@@ -531,11 +554,18 @@ const TemplateDetail = () => {
         <p>© {new Date().getFullYear()} CronzPH. All rights reserved.</p>
       </footer>
 
-      {/* Modal */}
+      {/* Inquiry Modal */}
       <TemplateInquiryModal
         template={template}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+      />
+
+      {/* Pre-Inquiry Modal (Coming Soon) */}
+      <PreInquiryModal
+        template={template}
+        isOpen={preInquiryOpen}
+        onClose={() => setPreInquiryOpen(false)}
       />
 
       {/* Image Preview Modal */}

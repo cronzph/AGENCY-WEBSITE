@@ -40,6 +40,7 @@ import ProjectBugs from './pages/admin/ProjectBugs'
 import FeatureRequests from './pages/admin/FeatureRequests'
 import TemplateManager from './pages/admin/TemplateManager'
 import Promos from './pages/admin/Promos'
+import PreInquiries from './pages/admin/PreInquiries'
 import Reviews from './pages/admin/Reviews'
 
 // Components
@@ -93,6 +94,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin/payments" element={<Payments />} />
             <Route path="/admin/templates-manager" element={<TemplateManager />} />
             <Route path="/admin/promos" element={<Promos />} />
+            <Route path="/admin/pre-inquiries" element={<PreInquiries />} />
             <Route path="/admin/reviews" element={<Reviews />} />
             <Route path="/admin/settings" element={<Settings />} />
             <Route path="/admin/change-password" element={<ChangePassword />} />
