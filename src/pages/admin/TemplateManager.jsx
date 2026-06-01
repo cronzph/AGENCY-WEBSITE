@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from '../../firebase/config';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { useToast } from '../../components/shared/Toast';
 import { staticTemplates } from '../../utils/templateData';
@@ -28,6 +29,11 @@ const TemplateManager = () => {
   const [seeding, setSeeding] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Image upload state
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
 
   // Temp inputs for array fields
   const [newTech, setNewTech] = useState('');
@@ -138,6 +144,49 @@ const TemplateManager = () => {
     }));
   };
 
+  const handleImageUpload = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file', 'error'); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image must be under 5MB', 'error'); return;
+    }
+    const storage = getStorage();
+    const ext = file.name.split('.').pop();
+    const fileName = `templates/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const storageRef = ref(storage, fileName);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    setImageUploading(true);
+    setImageUploadProgress(0);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+        setImageUploadProgress(pct);
+      },
+      (err) => {
+        console.error(err);
+        showToast('Upload failed: ' + err.message, 'error');
+        setImageUploading(false);
+      },
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        setForm(p => ({ ...p, image: url }));
+        setImageUploading(false);
+        setImageUploadProgress(0);
+        showToast('Image uploaded!', 'success');
+      }
+    );
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleImageUpload(file);
+  };
+
   // ─── RENDER ───
   if (editing) {
     return (
@@ -174,17 +223,98 @@ const TemplateManager = () => {
             </div>
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Preview Image URL</label>
-            <input value={form.image} onChange={e => setForm(p => ({ ...p, image: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white" placeholder="https://..." />
-            {form.image && (
-              <div className="mt-3 relative rounded-lg overflow-hidden border border-gray-700 cursor-pointer max-w-xs"
-                onClick={() => setPreviewImage({ url: form.image, alt: form.name })}>
-                <img src={form.image} alt="Preview" className="w-full h-40 object-cover" onError={e => e.target.style.display='none'} />
-              </div>
-            )}
+            <label className="block text-sm font-medium text-gray-300 mb-2">Preview Image</label>
+
+            {/* Drop Zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={e => e.preventDefault()}
+              onClick={() => !imageUploading && fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-xl transition-colors cursor-pointer
+                ${imageUploading ? 'border-blue-500 bg-blue-500/5 cursor-not-allowed' : 'border-gray-600 hover:border-blue-500 hover:bg-blue-500/5 bg-gray-900/50'}`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => handleImageUpload(e.target.files[0])}
+              />
+
+              {form.image && !imageUploading ? (
+                /* Preview with overlay */
+                <div className="relative rounded-xl overflow-hidden">
+                  <img
+                    src={form.image}
+                    alt="Preview"
+                    className="w-full h-48 object-cover"
+                    onError={e => e.target.style.display = 'none'}
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span className="text-white text-sm font-medium">Click to replace</span>
+                  </div>
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setForm(p => ({ ...p, image: '' })); }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg transition-colors"
+                  >×</button>
+                  {/* View full button */}
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setPreviewImage({ url: form.image, alt: form.name }); }}
+                    className="absolute top-2 left-2 px-2 py-1 bg-black/60 hover:bg-black/80 rounded text-white text-xs font-medium transition-colors"
+                  >🔍 View</button>
+                </div>
+              ) : imageUploading ? (
+                /* Upload progress */
+                <div className="flex flex-col items-center justify-center py-10 px-4">
+                  <div className="w-12 h-12 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin mb-4" />
+                  <p className="text-blue-400 font-medium text-sm mb-3">Uploading image...</p>
+                  <div className="w-full max-w-xs bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${imageUploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-gray-400 text-xs mt-2">{imageUploadProgress}%</p>
+                </div>
+              ) : (
+                /* Empty state */
+                <div className="flex flex-col items-center justify-center py-10 px-4">
+                  <div className="w-14 h-14 bg-gray-700 rounded-xl flex items-center justify-center mb-3">
+                    <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-300 font-medium text-sm mb-1">Click to upload or drag & drop</p>
+                  <p className="text-gray-500 text-xs">PNG, JPG, WebP — max 5MB</p>
+                </div>
+              )}
+            </div>
+
+            {/* URL fallback */}
+            <div className="mt-2">
+              <details className="group">
+                <summary className="text-xs text-gray-500 hover:text-gray-400 cursor-pointer select-none list-none flex items-center gap-1">
+                  <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Or paste an image URL instead
+                </summary>
+                <input
+                  value={form.image}
+                  onChange={e => setForm(p => ({ ...p, image: e.target.value }))}
+                  className="mt-2 w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm"
+                  placeholder="https://example.com/image.png"
+                />
+              </details>
+            </div>
           </div>
 
           {/* Pricing & Config */}
@@ -330,7 +460,7 @@ const TemplateManager = () => {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1,2,3,4].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-4 animate-pulse">
               <div className="aspect-video bg-gray-700 rounded-lg mb-4" />
               <div className="h-5 bg-gray-700 rounded w-2/3 mb-2" />
