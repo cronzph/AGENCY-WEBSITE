@@ -137,7 +137,7 @@ const Templates = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-28 pb-16 overflow-hidden">
+      <section className="relative pt-24 pb-10 sm:pt-28 sm:pb-16 overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-blue-950/30 to-gray-950" />
         <div className="absolute inset-0 opacity-20">
@@ -160,42 +160,38 @@ const Templates = () => {
             <span className="text-sm font-medium text-blue-300">Ready to Deploy — No waiting, no building from scratch</span>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-bold mb-5 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 leading-tight">
             Ready-to-Deploy{' '}
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
               System Templates
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-gray-300 mb-4 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-4 max-w-3xl mx-auto">
             Skip the long development process. Pick a template, we set it up for you, and you're live in days.
-            Just schedule, pay, and launch.
           </p>
-          <p className="text-gray-500 text-sm">
-            Templates include full source code • Admin panel • Responsive design • Deployment
+          <p className="text-gray-500 text-xs sm:text-sm">
+            Full source code • Admin panel • Responsive design • Deployment
           </p>
         </div>
       </section>
 
       {/* How It Works Mini-Bar */}
-      <section className="py-10 border-y border-gray-800/50">
+      <section className="py-8 sm:py-10 border-y border-gray-800/50">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-3 sm:gap-6">
             {[
               { icon: '🎯', title: 'Pick a Template', desc: 'Browse our ready-made systems' },
               { icon: '📅', title: 'Schedule Setup', desc: 'Choose your preferred date' },
               { icon: '🚀', title: 'Go Live', desc: 'We deploy, you launch!' },
             ].map((step, idx) => (
-              <div key={idx} className="flex items-center gap-4 group">
-                <div className="w-14 h-14 bg-gray-800 border border-gray-700 rounded-xl flex items-center justify-center text-2xl group-hover:border-blue-500/50 group-hover:bg-blue-500/5 transition-all shrink-0">
+              <div key={idx} className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 group text-center sm:text-left">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 bg-gray-800 border border-gray-700 rounded-xl flex items-center justify-center text-xl sm:text-2xl group-hover:border-blue-500/50 group-hover:bg-blue-500/5 transition-all shrink-0">
                   {step.icon}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-blue-400">STEP {idx + 1}</span>
-                    {idx < 2 && <span className="hidden md:inline text-gray-600">→</span>}
-                  </div>
-                  <h3 className="font-semibold text-white">{step.title}</h3>
-                  <p className="text-gray-400 text-sm">{step.desc}</p>
+                  <span className="text-xs font-bold text-blue-400">STEP {idx + 1}</span>
+                  <h3 className="font-semibold text-white text-sm sm:text-base">{step.title}</h3>
+                  <p className="text-gray-400 text-xs sm:text-sm hidden sm:block">{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -245,10 +241,10 @@ const Templates = () => {
       )}
 
       {/* Filter + Templates Grid */}
-      <section className="py-16">
+      <section className="py-8 sm:py-16">
         <div className="max-w-7xl mx-auto px-4">
           {/* Filter Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-12">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -265,7 +261,7 @@ const Templates = () => {
 
           {/* Loading State */}
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden animate-pulse">
                   <div className="aspect-[16/10] bg-gray-800" />
@@ -283,7 +279,7 @@ const Templates = () => {
             </div>
           ) : (
             /* Templates Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
               {filtered.map((template, idx) => (
                 <div
                   key={template.id}
@@ -298,7 +294,7 @@ const Templates = () => {
 
                   {/* Preview Image — Clickable for preview modal */}
                   <div
-                    className="relative aspect-[16/10] overflow-hidden bg-gray-800 cursor-zoom-in"
+                    className="relative aspect-[16/9] sm:aspect-[16/10] overflow-hidden bg-gray-800 cursor-zoom-in"
                     onClick={() => setPreviewImage({ url: template.image, alt: template.name, color: template.color })}
                   >
                     <img
@@ -346,13 +342,13 @@ const Templates = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                        <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
                           {template.name}
                         </h3>
-                        <p className="text-gray-400 text-sm mt-1">{template.tagline}</p>
+                        <p className="text-gray-400 text-xs sm:text-sm mt-1">{template.tagline}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         {(() => {
@@ -393,9 +389,9 @@ const Templates = () => {
                     </div>
 
                     {/* Feature highlights */}
-                    <div className="grid grid-cols-2 gap-1.5 mb-6">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-1.5 mb-4 sm:mb-6">
                       {template.features.slice(0, 4).map((feature, fIdx) => (
-                        <div key={fIdx} className="flex items-center gap-2 text-sm text-gray-300">
+                        <div key={fIdx} className="flex items-center gap-2 text-xs sm:text-sm text-gray-300">
                           <svg className="w-3.5 h-3.5 shrink-0" style={{ color: template.color }} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
@@ -420,31 +416,44 @@ const Templates = () => {
                     )}
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3">
-                      {template.demoUrl ? (
-                        <a
-                          href={template.demoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20"
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      {/* Top row: Demo + Details */}
+                      <div className="flex gap-2.5 flex-1">
+                        {template.demoUrl ? (
+                          <a
+                            href={template.demoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Live Demo
+                          </a>
+                        ) : (
+                          <div className="flex-1 py-2.5 rounded-xl font-bold text-gray-500 text-sm bg-gray-800/50 border border-gray-700/50 flex items-center justify-center gap-1.5 cursor-default">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="hidden xs:inline">Demo</span> Coming Soon
+                          </div>
+                        )}
+                        <Link
+                          to={`/templates/${template.id}`}
+                          className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 rounded-xl font-semibold text-sm text-gray-300 hover:text-white transition-all flex items-center gap-1.5"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          Details
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
-                          Live Demo
-                        </a>
-                      ) : (
-                        <div className="flex-1 py-3 rounded-xl font-bold text-gray-500 bg-gray-800/50 border border-gray-700/50 flex items-center justify-center gap-2 cursor-default">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Demo Coming Soon
-                        </div>
-                      )}
+                        </Link>
+                      </div>
+                      {/* Inquire button — full width on mobile */}
                       <button
                         onClick={() => openInquiry(template)}
-                        className="px-5 py-3 rounded-xl font-bold text-white transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto sm:px-5 py-2.5 rounded-xl font-bold text-white text-sm transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
                         style={{ background: `linear-gradient(135deg, ${template.color}, ${template.color}cc)` }}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,15 +461,6 @@ const Templates = () => {
                         </svg>
                         Inquire
                       </button>
-                      <Link
-                        to={`/templates/${template.id}`}
-                        className="px-5 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 rounded-xl font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-2"
-                      >
-                        Details
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
                     </div>
                   </div>
                 </div>
