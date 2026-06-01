@@ -276,15 +276,17 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-lg bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden animate-[fadeInUp_0.3s_ease-out]"
+        className="relative w-full max-w-lg bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-700 border-b-0 sm:border-b overflow-hidden animate-[fadeInUp_0.3s_ease-out] max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with template info */}
-        <div className="relative p-6 pb-4 border-b border-gray-700">
+        <div className="relative px-4 sm:px-6 pt-5 pb-3 sm:pb-4 border-b border-gray-700 shrink-0">
           <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: template.color }} />
+          {/* Drag handle for mobile */}
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3 sm:hidden" />
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -293,21 +295,21 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shrink-0"
               style={{ background: `${template.color}20` }}
             >
               {template.category === 'E-commerce' ? '🛒' :
                 template.category === 'POS' ? '💳' :
                   template.category === 'Landing Page' ? '🌐' : '☕'}
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">{template.name}</h3>
-              <p className="text-sm text-gray-400">{template.tagline}</p>
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-xl font-bold text-white leading-tight truncate pr-8">{template.name}</h3>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">{template.tagline}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 mt-4 flex-wrap">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             <span className="px-3 py-1 text-xs font-semibold rounded-full" style={{ background: `${template.color}20`, color: template.color }}>
               {template.setupTime} setup
             </span>
@@ -331,7 +333,7 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1">
           {errors.submit && (
             <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-red-400 text-sm">
               {errors.submit}
@@ -445,7 +447,7 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-col xs:flex-row gap-2">
                 <input
                   type="text"
                   value={promoCode}
@@ -455,21 +457,24 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
                     setPromoStatus(null);
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplyPromo())}
-                  placeholder="Enter promo code (e.g. SAVE30)"
-                  className="flex-1 px-4 py-2.5 bg-gray-900/60 border border-gray-600 rounded-xl text-white font-mono placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase"
+                  placeholder="e.g. SAVE30"
+                  className="flex-1 w-full px-4 py-3 bg-gray-900/60 border border-gray-600 rounded-xl text-white font-mono placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase text-sm"
                   maxLength={20}
                 />
                 <button
                   type="button"
                   onClick={handleApplyPromo}
                   disabled={!promoCode.trim() || promoStatus === 'checking'}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors whitespace-nowrap"
+                  className="w-full xs:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors whitespace-nowrap flex items-center justify-center gap-2"
                 >
                   {promoStatus === 'checking' ? (
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Checking...
+                    </>
                   ) : 'Apply'}
                 </button>
               </div>
@@ -508,7 +513,7 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
             )}
           </button>
 
-          <p className="text-center text-gray-500 text-xs">
+          <p className="text-center text-gray-500 text-xs pb-safe">
             We'll contact you within 24 hours to schedule your setup
           </p>
         </form>
@@ -516,8 +521,11 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
 
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
+          from { opacity: 0; transform: translateY(40px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .pb-safe {
+          padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
         }
       `}</style>
     </div>
