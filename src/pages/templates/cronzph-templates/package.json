@@ -1,0 +1,28 @@
+{
+    "name": "cronzph-templates",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "CronzPH Templates - Multi-template monorepo for business system templates",
+    "scripts": {
+        "dev:landing": "pnpm --filter @cronzph/landing dev",
+        "build:landing": "pnpm --filter @cronzph/landing build",
+        "dev:coffee": "pnpm --filter @cronzph/coffee-shop dev",
+        "build:coffee": "pnpm --filter @cronzph/coffee-shop build",
+        "seed:coffee": "node scripts/seed-demo-client.js --template=coffee",
+        "seed:coffee:admin": "node scripts/seed-demo.js --template=coffee",
+        "export:coffee": "bash scripts/export-template.sh coffee-shop"
+    },
+    "dependencies": {
+        "firebase": "^10.7.0",
+        "firebase-admin": "^13.10.0"
+    },
+    "keywords": [
+        "templates",
+        "react",
+        "firebase",
+        "monorepo"
+    ],
+    "author": "CronzPH",
+    "license": "MIT"
+}

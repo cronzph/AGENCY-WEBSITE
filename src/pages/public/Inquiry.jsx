@@ -329,6 +329,7 @@ const Inquiry = () => {
   };
 
   // Check if email already has an active inquiry (prevent duplicates)
+  // Allows re-registration if all previous projects are deleted or completed
   const checkEmailExists = async (email) => {
     if (!email || editId) return true; // Skip check when editing
     try {
@@ -340,10 +341,13 @@ const Inquiry = () => {
       const snapshot = await getDocs(existingQuery);
 
       if (!snapshot.empty) {
-        // Check if any active (non-completed/delivered) project exists
+        // Check if any active (non-completed/delivered/deleted) project exists
         const activeProjects = snapshot.docs.filter(d => {
-          const status = d.data().status;
-          return !['delivered', 'completed'].includes(status);
+          const data = d.data();
+          // Skip deleted projects — they don't block re-registration
+          if (data.deleted) return false;
+          const status = data.status;
+          return !['delivered', 'completed', 'cancelled'].includes(status);
         });
 
         if (activeProjects.length > 0) {

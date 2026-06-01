@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
-import { doc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import SetPassword from '../../components/shared/SetPassword';
 
 const ClientPortal = () => {
@@ -13,6 +13,10 @@ const ClientPortal = () => {
     const [bugReports, setBugReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showSetPassword, setShowSetPassword] = useState(false);
+    const [reviewRating, setReviewRating] = useState(0);
+    const [reviewComment, setReviewComment] = useState('');
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [reviewSubmitted, setReviewSubmitted] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -36,7 +40,7 @@ const ClientPortal = () => {
                 if (projectDoc.exists()) {
                     const data = projectDoc.data();
                     setProjectDetails(data);
-                    const NEEDS_PW = ['proposal_accepted', 'contract_signed', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+                    const NEEDS_PW = ['proposal_accepted', 'contract_signed', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'setup_scheduled', 'in_progress', 'planning', 'building', 'for_review', 'delivered', 'completed'];
                     if (NEEDS_PW.includes(data.status) && !data.clientPassword) setShowSetPassword(true);
                     const bugsQ = query(collection(db, 'projects', selectedProject.id, 'bugReports'), where('createdAt', '!=', null));
                     const bugsSnap = await getDocs(bugsQ);
@@ -53,7 +57,7 @@ const ClientPortal = () => {
         navigate('/portal/login');
     };
 
-    const LOCKED = ['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'in_progress', 'discovery_completed', 'planning', 'building', 'for_review', 'delivered', 'completed'];
+    const LOCKED = ['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed', 'setup_scheduled', 'in_progress', 'discovery_completed', 'planning', 'building', 'for_review', 'delivered', 'completed'];
     const canDeleteOrEdit = projectDetails && !LOCKED.includes(projectDetails.status);
 
     const handleDeleteInquiry = async () => {
@@ -81,8 +85,14 @@ const ClientPortal = () => {
     };
 
     const isStudentClient = projectDetails?.clientType === 'student';
+    const isTemplateProject = projectDetails?.source === 'template';
 
     const getStatusStep = (status) => {
+        if (isTemplateProject) {
+            // Template flow: 0=Inquiry, 1=Payment, 2=Setup, 3=Review, 4=Delivered
+            const s = { inquiry: 0, assessed: 0, awaiting_payment: 1, payment_submitted: 1, payment_confirmed: 1, setup_scheduled: 2, in_progress: 2, planning: 2, building: 2, for_review: 3, delivered: 4, completed: 4 };
+            return s[status] ?? 0;
+        }
         if (isStudentClient) {
             // Phases: 0=Inquiry, 1=Waiting for Interview, 2=Interview Done, 3=Proposal, 4=Contract & Payment, 5=In Progress, 6=Review, 7=Delivered
             const s = { inquiry: 0, assessed: 0, interview_scheduled: 1, interview_done: 2, proposal_sent: 3, proposal_accepted: 4, awaiting_payment: 4, payment_submitted: 4, payment_confirmed: 4, in_progress: 5, planning: 5, building: 5, for_review: 6, delivered: 7, completed: 7 };
@@ -93,33 +103,67 @@ const ClientPortal = () => {
         return s[status] ?? 0;
     };
 
-    const statusPhases = isStudentClient
-        ? ['Inquiry', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered']
-        : ['Inquiry', 'Discovery', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered'];
+    const statusPhases = isTemplateProject
+        ? ['Inquiry', 'Payment', 'Setup', 'Review', 'Delivered']
+        : isStudentClient
+            ? ['Inquiry', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered']
+            : ['Inquiry', 'Discovery', 'Waiting for Interview', 'Interview Done', 'Proposal', 'Contract & Payment', 'In Progress', 'Review', 'Delivered'];
 
     const getStatusLabel = (status) => {
+        if (isTemplateProject) {
+            const l = { inquiry: 'Inquiry Submitted', assessed: 'Awaiting Payment', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Under Review', payment_confirmed: 'Payment Confirmed', setup_scheduled: 'Setup Scheduled', in_progress: 'Setting Up', planning: 'Setting Up', building: 'Setting Up', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
+            return l[status] || 'Processing';
+        }
         const l = { inquiry: 'Inquiry Submitted', assessed: isStudentClient ? 'Waiting for Interview' : 'Waiting for Discovery', discovery_completed: 'Waiting for Interview', interview_scheduled: 'Interview Scheduled', interview_done: 'Waiting for Proposal', proposal_sent: 'Proposal Ready', proposal_accepted: 'Proposal Accepted — Sign Contract', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Under Review', payment_confirmed: 'Payment Confirmed', in_progress: 'In Progress', planning: 'In Progress — Planning', building: 'In Progress — Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
         return l[status] || 'Processing';
     };
 
     const getStatusShortLabel = (status) => {
+        if (isTemplateProject) {
+            const l = { inquiry: 'Inquiry', assessed: 'Awaiting Payment', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Review', payment_confirmed: 'Payment OK', setup_scheduled: 'Setup Scheduled', in_progress: 'Setting Up', planning: 'Setting Up', building: 'Setting Up', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
+            return l[status] || 'Processing';
+        }
         const l = { inquiry: 'Inquiry', assessed: 'Assessed', discovery_completed: 'Discovery Done', interview_scheduled: 'Interview Set', interview_done: 'Interview Done', proposal_sent: 'Proposal Ready', proposal_accepted: 'Sign Contract', awaiting_payment: 'Awaiting Payment', payment_submitted: 'Payment Review', payment_confirmed: 'Payment OK', in_progress: 'In Progress', planning: 'Planning', building: 'Building', for_review: 'For Review', delivered: 'Delivered', completed: 'Completed' };
         return l[status] || 'Processing';
     };
 
     const getStatusDotColor = (status) => {
         if (['delivered', 'completed'].includes(status)) return 'bg-green-400';
-        if (['in_progress', 'planning', 'building', 'for_review'].includes(status)) return 'bg-yellow-400';
+        if (['in_progress', 'planning', 'building', 'for_review', 'setup_scheduled'].includes(status)) return 'bg-yellow-400';
         if (['proposal_sent', 'proposal_accepted', 'awaiting_payment', 'payment_submitted', 'payment_confirmed'].includes(status)) return 'bg-blue-400';
         return 'bg-gray-400';
     };
 
     const isProposalBeingPrepared = () => {
+        if (isTemplateProject) return false; // Templates don't have proposals
         const status = projectDetails?.status;
         return (status === 'assessed' || status === 'interview_done' || status === 'discovery_completed') && !projectDetails?.proposalData;
     };
 
     const getActionsForStatus = (status) => {
+        if (isTemplateProject) {
+            const a = {
+                inquiry: [],
+                assessed: [{ label: 'Make Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
+                awaiting_payment: [{ label: 'Make Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
+                payment_submitted: [{ label: 'View Payment', link: `/payment/${selectedProject?.id}`, icon: '💳' }],
+                payment_confirmed: [],
+                setup_scheduled: [],
+                in_progress: [],
+                planning: [],
+                building: [],
+                for_review: [],
+                delivered: [
+                    { label: 'View Delivery', link: `/delivery/${selectedProject?.id}`, icon: '🚀' },
+                    { label: 'Report Bug', link: `/bug-report/${selectedProject?.id}`, icon: '🐛' }
+                ],
+                completed: [
+                    { label: 'View Delivery', link: `/delivery/${selectedProject?.id}`, icon: '🚀' },
+                    { label: 'Report Bug', link: `/bug-report/${selectedProject?.id}`, icon: '🐛' }
+                ],
+            };
+            return a[status] || [];
+        }
         const a = {
             assessed: isStudentClient ? [] : [{ label: 'Fill Discovery Form', link: `/discovery/${selectedProject?.id}`, icon: '📋' }],
             discovery_completed: [{ label: 'View Discovery', link: `/discovery/${selectedProject?.id}`, icon: '✅' }],
@@ -156,6 +200,30 @@ const ClientPortal = () => {
         return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
     };
 
+    const handleSubmitReview = async () => {
+        if (!reviewRating || !reviewComment.trim()) return;
+        setReviewSubmitting(true);
+        try {
+            await addDoc(collection(db, 'templateReviews'), {
+                projectId: selectedProject.id,
+                clientName: projectDetails.clientName,
+                email: projectDetails.email,
+                templateName: projectDetails.servicesNeeded?.join(', ') || 'Template',
+                rating: reviewRating,
+                comment: reviewComment.trim(),
+                approved: false, // Admin must approve before showing publicly
+                createdAt: serverTimestamp(),
+            });
+            setReviewSubmitted(true);
+            setReviewRating(0);
+            setReviewComment('');
+        } catch (err) {
+            console.error('Error submitting review:', err);
+        } finally {
+            setReviewSubmitting(false);
+        }
+    };
+
     if (isLoading && !projectDetails) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -172,6 +240,16 @@ const ClientPortal = () => {
     const isDelivered = projectDetails && ['delivered', 'completed'].includes(projectDetails.status);
 
     const getDocuments = () => {
+        if (isTemplateProject) {
+            const docs = [
+                { label: 'Payment', icon: '💳', link: `/payment/${selectedProject?.id}` },
+            ];
+            if (isDelivered) {
+                docs.push({ label: 'Delivery', icon: '🚀', link: `/delivery/${selectedProject?.id}` });
+                docs.push({ label: 'Report Bug', icon: '🐛', link: `/bug-report/${selectedProject?.id}` });
+            }
+            return docs;
+        }
         const docs = [
             { label: 'Proposal', icon: '📄', link: `/proposal/${selectedProject?.id}` },
             { label: 'Contract', icon: '📝', link: `/contract/${selectedProject?.id}` },
@@ -292,6 +370,9 @@ const ClientPortal = () => {
                                             <p className="text-gray-400 text-sm">{projectDetails.clientName}</p>
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2">
+                                            {isTemplateProject && (
+                                                <span className="inline-block px-2.5 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">📦 Template</span>
+                                            )}
                                             {isStudentClient && (
                                                 <span className="inline-block px-2.5 py-1 rounded-full text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30">🎓 Student</span>
                                             )}
@@ -381,6 +462,53 @@ const ClientPortal = () => {
                                                     <p className="text-gray-300 text-xs sm:text-sm">Your interview has been scheduled. Please wait for further details from our team.</p>
                                                 )}
                                                 <p className="text-gray-400 text-xs mt-1">Please be available at the scheduled time. Our team will reach out to you.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Template: Payment Required Notice */}
+                                {isTemplateProject && (projectDetails.status === 'assessed' || projectDetails.status === 'awaiting_payment') && (
+                                    <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 rounded-xl p-4 sm:p-6 border border-blue-500/30">
+                                        <div className="flex items-start gap-3 sm:gap-4">
+                                            <div className="relative shrink-0">
+                                                <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+                                                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-full flex items-center justify-center border-2 border-blue-500/30">
+                                                    <span className="text-xl sm:text-2xl">💳</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-white font-semibold text-sm sm:text-base mb-1">Action Required: Complete Payment</h3>
+                                                <p className="text-gray-300 text-xs sm:text-sm leading-relaxed mb-3">Please complete your payment to proceed with the template setup. Once confirmed, we'll schedule your setup.</p>
+                                                <Link
+                                                    to={`/payment/${selectedProject?.id}`}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+                                                >
+                                                    💳 Make Payment
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Template: Setup Scheduled Notice */}
+                                {isTemplateProject && projectDetails.status === 'setup_scheduled' && (
+                                    <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-xl p-4 sm:p-6 border border-amber-500/30">
+                                        <div className="flex items-start gap-3 sm:gap-4">
+                                            <div className="relative shrink-0">
+                                                <div className="absolute inset-0 bg-amber-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+                                                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-amber-500/10 rounded-full flex items-center justify-center border-2 border-amber-500/30">
+                                                    <span className="text-xl sm:text-2xl">🛠️</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-white font-semibold text-sm sm:text-base mb-1">Setup Scheduled</h3>
+                                                {projectDetails.setupSchedule?.scheduledDateStr ? (
+                                                    <p className="text-amber-300 font-medium text-sm sm:text-base">🗓️ {projectDetails.setupSchedule.scheduledDateStr}</p>
+                                                ) : (
+                                                    <p className="text-gray-300 text-xs sm:text-sm">Your template setup has been scheduled. Our team will configure everything for you.</p>
+                                                )}
+                                                <p className="text-gray-400 text-xs mt-1">We'll notify you once the setup is complete and ready for review.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -605,6 +733,57 @@ const ClientPortal = () => {
                                                     </span>
                                                 </div>
                                             ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Leave a Review — Only for delivered template projects */}
+                                {isTemplateProject && isDelivered && !reviewSubmitted && (
+                                    <div className="bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-700/50">
+                                        <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">⭐ Leave a Review</h3>
+                                        <p className="text-gray-400 text-xs sm:text-sm mb-4">Share your experience! Your review will be visible after admin approval.</p>
+                                        {/* Star Rating */}
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="text-gray-400 text-sm mr-2">Rating:</span>
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    onClick={() => setReviewRating(star)}
+                                                    className="focus:outline-none transition-transform hover:scale-110"
+                                                >
+                                                    <svg className={`w-7 h-7 ${star <= reviewRating ? 'text-yellow-400' : 'text-gray-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                    </svg>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* Comment */}
+                                        <textarea
+                                            value={reviewComment}
+                                            onChange={(e) => setReviewComment(e.target.value)}
+                                            placeholder="Tell us about your experience..."
+                                            rows={3}
+                                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                                        />
+                                        <button
+                                            onClick={handleSubmitReview}
+                                            disabled={!reviewRating || !reviewComment.trim() || reviewSubmitting}
+                                            className="mt-3 px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Review Submitted Confirmation */}
+                                {isTemplateProject && isDelivered && reviewSubmitted && (
+                                    <div className="bg-gray-800 rounded-xl p-4 sm:p-6 border border-green-500/30">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">✅</span>
+                                            <div>
+                                                <h3 className="text-white font-semibold text-sm sm:text-base">Thank you for your review!</h3>
+                                                <p className="text-gray-400 text-xs sm:text-sm">Your review has been submitted and will appear publicly after admin approval.</p>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

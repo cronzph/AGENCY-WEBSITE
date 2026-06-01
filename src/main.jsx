@@ -16,6 +16,8 @@ import FeatureRequest from './pages/public/FeatureRequest'
 import ClientLogin from './pages/public/ClientLogin'
 import ClientPortal from './pages/public/ClientPortal'
 import InterviewResults from './pages/public/InterviewResults'
+import Templates from './pages/public/Templates'
+import TemplateDetail from './pages/public/TemplateDetail'
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard'
@@ -36,6 +38,9 @@ import Billing from './pages/admin/Billing'
 import DevDashboard from './pages/admin/DevDashboard'
 import ProjectBugs from './pages/admin/ProjectBugs'
 import FeatureRequests from './pages/admin/FeatureRequests'
+import TemplateManager from './pages/admin/TemplateManager'
+import Promos from './pages/admin/Promos'
+import Reviews from './pages/admin/Reviews'
 
 // Components
 import ProtectedRoute from './components/shared/ProtectedRoute'
@@ -51,6 +56,8 @@ createRoot(document.getElementById('root')).render(
           {/* Public Routes */}
           <Route path="/" element={<ClientRedirect><Landing /></ClientRedirect>} />
           <Route path="/inquiry" element={<Inquiry />} />
+          <Route path="/templates" element={<Templates />} />
+          <Route path="/templates/:id" element={<TemplateDetail />} />
           <Route path="/proposal/:id" element={<Proposal />} />
           <Route path="/payment/:id" element={<Payment />} />
           <Route path="/delivery/:id" element={<Delivery />} />
@@ -84,6 +91,9 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin/dev-dashboard" element={<DevDashboard />} />
             <Route path="/admin/feature-requests" element={<FeatureRequests />} />
             <Route path="/admin/payments" element={<Payments />} />
+            <Route path="/admin/templates-manager" element={<TemplateManager />} />
+            <Route path="/admin/promos" element={<Promos />} />
+            <Route path="/admin/reviews" element={<Reviews />} />
             <Route path="/admin/settings" element={<Settings />} />
             <Route path="/admin/change-password" element={<ChangePassword />} />
           </Route>

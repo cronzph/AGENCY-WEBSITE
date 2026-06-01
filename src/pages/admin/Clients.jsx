@@ -2,16 +2,20 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { collection, query, onSnapshot, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs, updateDoc, doc, writeBatch } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
+import { useToast } from '../../components/shared/Toast';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 
 const Clients = () => {
+  const { showToast } = useToast();
   const [authReady, setAuthReady] = useState(false);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientProjects, setClientProjects] = useState([]);
   const [clientPayments, setClientPayments] = useState([]);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // client email to delete
 
   // Wait for auth before subscribing to Firestore
   useEffect(() => {
@@ -24,7 +28,7 @@ const Clients = () => {
 
   useEffect(() => {
     if (!authReady) return;
-    
+
     const projectsQuery = query(
       collection(db, 'projects')
     );
@@ -33,7 +37,7 @@ const Clients = () => {
       const projectsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).filter(p => !p.deleted); // Filter out soft-deleted projects
 
       // Group projects by email
       const clientsMap = {};
@@ -53,9 +57,9 @@ const Clients = () => {
         }
         clientsMap[email].projects.push(project);
         // Update earliest date
-        if (!clientsMap[email].firstProjectDate || 
-            (project.createdAt && project.createdAt.toDate && 
-             project.createdAt.toDate() < clientsMap[email].firstProjectDate.toDate())) {
+        if (!clientsMap[email].firstProjectDate ||
+          (project.createdAt && project.createdAt.toDate &&
+            project.createdAt.toDate() < clientsMap[email].firstProjectDate.toDate())) {
           clientsMap[email].firstProjectDate = project.createdAt;
         }
       });
@@ -75,12 +79,12 @@ const Clients = () => {
       const clientsList = Object.values(clientsMap).map(client => {
         const clientPayments = paymentsData.filter(p => p.clientId === client.email);
         const totalPaid = clientPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-        const activeProjects = client.projects.filter(p => 
+        const activeProjects = client.projects.filter(p =>
           !['delivered', 'completed', 'cancelled'].includes(p.status)
         ).length;
-        
+
         // Check SaaS subscription
-        const hasSaaS = client.projects.some(p => 
+        const hasSaaS = client.projects.some(p =>
           p.aiAssessment?.monthlySassPrice > 0
         );
 
@@ -115,6 +119,51 @@ const Clients = () => {
     }));
     setClientPayments(payments);
     setClientProjects(client.projects);
+  };
+
+  // Soft delete client — marks all their projects as deleted
+  // The email can be reused for a new account (like creating fresh info)
+  const handleDeleteClient = async (clientEmail) => {
+    try {
+      // Get all projects for this client
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        where('email', '==', clientEmail)
+      );
+      const projectsSnap = await getDocs(projectsQuery);
+
+      // Batch update all projects to mark as deleted
+      const batch = writeBatch(db);
+      projectsSnap.docs.forEach((projectDoc) => {
+        batch.update(projectDoc.ref, {
+          deleted: true,
+          deletedAt: new Date(),
+          status: 'cancelled',
+        });
+      });
+
+      // Also mark payments as deleted
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        where('clientId', '==', clientEmail)
+      );
+      const paymentsSnap = await getDocs(paymentsQuery);
+      paymentsSnap.docs.forEach((paymentDoc) => {
+        batch.update(paymentDoc.ref, {
+          deleted: true,
+          deletedAt: new Date(),
+        });
+      });
+
+      await batch.commit();
+
+      showToast(`Client "${clientEmail}" has been deleted. They can now create a new account with the same email.`, 'success');
+      setSelectedClient(null);
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error('Error deleting client:', err);
+      showToast('Failed to delete client. Please try again.', 'error');
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -213,6 +262,13 @@ const Clients = () => {
                   >
                     View Profile
                   </button>
+                  <button
+                    onClick={() => setDeleteConfirm(client.email)}
+                    className="px-3 py-2 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    title="Delete Client"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             ))}
@@ -256,6 +312,7 @@ const Clients = () => {
                         <div className="flex gap-2">
                           <Link to={`/admin/projects?email=${encodeURIComponent(client.email)}`} className="px-3 py-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors">View Projects</Link>
                           <button onClick={() => openClientProfile(client)} className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">View Profile</button>
+                          <button onClick={() => setDeleteConfirm(client.email)} className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -278,14 +335,22 @@ const Clients = () => {
                   <h2 className="text-xl font-semibold text-white">{selectedClient.clientName}</h2>
                   <p className="text-gray-400 text-sm mt-1">{selectedClient.businessName}</p>
                 </div>
-                <button
-                  onClick={() => setSelectedClient(null)}
-                  className="text-gray-500 hover:text-white"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDeleteConfirm(selectedClient.email)}
+                    className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  >
+                    🗑️ Delete Client
+                  </button>
+                  <button
+                    onClick={() => setSelectedClient(null)}
+                    className="text-gray-500 hover:text-white"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -308,9 +373,9 @@ const Clients = () => {
                   </div>
                   <div>
                     <p className="text-gray-500 text-xs">Facebook Link</p>
-                    <a 
-                      href={selectedClient.fbLink} 
-                      target="_blank" 
+                    <a
+                      href={selectedClient.fbLink}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
                     >
@@ -443,6 +508,18 @@ const Clients = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        title="Delete Client"
+        message={`Are you sure you want to delete this client (${deleteConfirm})? All their projects will be cancelled and marked as deleted. The client can create a new account with the same email afterward.`}
+        confirmText="Delete Client"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => handleDeleteClient(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 };

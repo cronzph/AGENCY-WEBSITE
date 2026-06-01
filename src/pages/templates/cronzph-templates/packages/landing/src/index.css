@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+@layer components {
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .glass-dark {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-text {
+        background: linear-gradient(to right, #60a5fa, #a78bfa, #fbbf24);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .btn-primary {
+        @apply px-6 py-3 text-white font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5;
+        background: linear-gradient(to right, #2563eb, #3b82f6);
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(to right, #3b82f6, #60a5fa);
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-secondary {
+        @apply px-6 py-3 border text-white font-semibold rounded-xl transition-all duration-300;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .card-hover {
+        @apply transition-all duration-300 hover:-translate-y-1;
+        box-shadow: 0 0 0 0 transparent;
+    }
+
+    .card-hover:hover {
+        box-shadow: 0 25px 50px -12px rgba(37, 99, 235, 0.1);
+    }
+
+    .section-padding {
+        @apply py-24 px-6;
+    }
+}
+
+@layer utilities {
+    .text-balance {
+        text-wrap: balance;
+    }
+
+    .hero-glow {
+        background-image:
+            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.3) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 70% 60%, rgba(251, 191, 36, 0.08) 0%, transparent 50%);
+    }
+
+    .noise-bg {
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+    }
+}

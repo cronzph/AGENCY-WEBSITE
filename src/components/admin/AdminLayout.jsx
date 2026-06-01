@@ -57,6 +57,12 @@ const PortfolioIcon = () => (
   </svg>
 );
 
+const TemplatesIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+  </svg>
+);
+
 const BillingIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
@@ -72,6 +78,12 @@ const DevDashboardIcon = () => (
 const FeatureRequestIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+  </svg>
+);
+
+const ReviewsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
   </svg>
 );
 
@@ -105,6 +117,12 @@ const CloseIcon = () => (
   </svg>
 );
 
+const PromosIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
+
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: DashboardIcon },
   { path: '/admin/clients', label: 'Clients', icon: ClientsIcon },
@@ -113,6 +131,9 @@ const navItems = [
   { path: '/admin/bugs', label: 'Bug Reports', icon: BugIcon },
   { path: '/admin/analytics', label: 'Analytics', icon: AnalyticsIcon },
   { path: '/admin/portfolio', label: 'Portfolio', icon: PortfolioIcon },
+  { path: '/admin/templates-manager', label: 'Templates', icon: TemplatesIcon },
+  { path: '/admin/promos', label: 'Promos', icon: PromosIcon },
+  { path: '/admin/reviews', label: 'Reviews', icon: ReviewsIcon },
   { path: '/admin/billing', label: 'Billing', icon: BillingIcon },
   { path: '/admin/dev-dashboard', label: 'Dev Dashboard', icon: DevDashboardIcon },
   { path: '/admin/feature-requests', label: 'Feature Requests', icon: FeatureRequestIcon },

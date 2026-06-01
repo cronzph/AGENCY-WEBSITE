@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase/config';
 
-import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp, deleteField } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp, deleteField, deleteDoc } from 'firebase/firestore';
 import StatusBadge from '../../components/shared/StatusBadge';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 import { useToast } from '../../components/shared/Toast';
 import { callAIJson } from '../../ai/callAI';
 import { generateProposal } from '../../utils/proposalGenerator';
@@ -21,6 +22,7 @@ const Projects = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 10;
@@ -43,6 +45,7 @@ const Projects = () => {
   const [scheduleModal, setScheduleModal] = useState(null); // projectId being scheduled
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+  const [deleteProjectConfirm, setDeleteProjectConfirm] = useState(null); // project to delete
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -73,6 +76,7 @@ const Projects = () => {
     { value: 'in_progress', label: 'In Progress' },
     { value: 'planning', label: 'Planning' },
     { value: 'building', label: 'Building' },
+    { value: 'setup_scheduled', label: 'Setup Scheduled' },
     { value: 'for_review', label: 'For Review' },
     { value: 'delivered', label: 'Delivered' },
     { value: 'completed', label: 'Completed' },
@@ -117,10 +121,70 @@ const Projects = () => {
     'in_progress',
     'planning',
     'building',
+    'setup_scheduled',
     'for_review',
     'delivered',
     'completed'
   ];
+
+  // Template-specific status flow (simpler: payment → schedule setup → review → delivered → done)
+  const templateStatusOrder = [
+    'inquiry',
+    'assessed',
+    'awaiting_payment',
+    'payment_submitted',
+    'payment_confirmed',
+    'setup_scheduled',
+    'for_review',
+    'delivered',
+    'completed'
+  ];
+
+  // Check if a project is a template project
+  const isTemplateProject = (project) => project?.source === 'template';
+
+  // Get the appropriate status order for a project
+  const getStatusOrderForProject = (project) => {
+    return isTemplateProject(project) ? templateStatusOrder : statusOrder;
+  };
+
+  // Validate that required documents exist before allowing progress
+  const getDocumentBlockers = (project) => {
+    const blockers = [];
+    const status = project.status;
+
+    if (isTemplateProject(project)) {
+      // Template projects: simpler requirements
+      if (status === 'payment_confirmed' && !project.preferredSetupDate) {
+        blockers.push('Setup date must be scheduled before proceeding');
+      }
+      return blockers;
+    }
+
+    // Regular project document requirements
+    if (status === 'interview_done' && !project.aiAssessment) {
+      blockers.push('AI Assessment must be completed before generating proposal');
+    }
+    if (status === 'interview_done' && !project.proposalData) {
+      blockers.push('Proposal must be generated before sending to client');
+    }
+    if ((status === 'proposal_sent' || status === 'proposal_accepted') && !project.proposalData) {
+      blockers.push('Proposal document is missing — regenerate before proceeding');
+    }
+    if (status === 'payment_confirmed' && !project.aiAssessment?.suggestedPrice) {
+      blockers.push('Price assessment is missing — cannot start work without confirmed pricing');
+    }
+    if (status === 'in_progress' && !project.projectPlan) {
+      blockers.push('Project plan must be generated before moving to building phase');
+    }
+
+    return blockers;
+  };
+
+  // Check if project can advance to next status
+  const canAdvance = (project) => {
+    return getDocumentBlockers(project).length === 0;
+  };
 
   const getStepStatus = (status, step) => {
     const currentIdx = statusOrder.indexOf(status);
@@ -147,7 +211,7 @@ const Projects = () => {
       const projectsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).filter(p => !p.deleted);
       setProjects(projectsData);
     }, (error) => {
       console.error('Firestore projects error:', error);
@@ -305,6 +369,22 @@ const Projects = () => {
     } catch (err) {
       console.error('Error updating status:', err);
       showToast('Failed to update status. Please try again.', 'error');
+    }
+  };
+
+  const handleDeleteProject = async (project) => {
+    try {
+      await updateDoc(doc(db, 'projects', project.id), {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+        status: 'cancelled'
+      });
+      showToast(`Project "${project.businessName || project.clientName}" deleted successfully`, 'success');
+      setSelectedProject(null);
+      setDeleteProjectConfirm(null);
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      showToast('Failed to delete project. Please try again.', 'error');
     }
   };
 
@@ -471,7 +551,12 @@ const Projects = () => {
       matchesPaymentType = p.aiAssessment?.monthlySassPrice > 0;
     }
 
-    return matchesStatus && matchesEmail && matchesSearch && matchesService && matchesPaymentType;
+    // Source filter (template vs regular inquiry)
+    const matchesSource = sourceFilter === 'all' ||
+      (sourceFilter === 'template' && p.source === 'template') ||
+      (sourceFilter === 'inquiry' && p.source !== 'template');
+
+    return matchesStatus && matchesEmail && matchesSearch && matchesService && matchesPaymentType && matchesSource;
   }).sort((a, b) => {
     // Sort
     if (sortBy === 'newest') {
@@ -532,6 +617,7 @@ const Projects = () => {
       discovery_completed: 'bg-teal-500',
       planning: 'bg-cyan-500',
       building: 'bg-purple-600',
+      setup_scheduled: 'bg-amber-500',
       for_review: 'bg-indigo-600',
       delivered: 'bg-green-500',
       completed: 'bg-green-600',
@@ -546,7 +632,7 @@ const Projects = () => {
     return `${services[0]} +${services.length - 1} more`;
   };
 
-  // Handle confirming interview schedule from modal
+  // Handle confirming interview/setup schedule from modal
   const handleConfirmSchedule = async (projectId) => {
     if (!scheduleDate || !scheduleTime) {
       showToast('Please pick a date and time.', 'error');
@@ -557,9 +643,21 @@ const Projects = () => {
     const dateLabel = scheduledAt.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
     const timeLabel = scheduledAt.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
     const scheduledDateStr = `${dateLabel} at ${timeLabel}`;
-    await handleStatusChange(projectId, 'interview_scheduled', {
-      interview: { status: 'scheduled', scheduledAt, scheduledDateStr }
-    });
+
+    // Check if this is a template project scheduling setup
+    const project = projects.find(p => p.id === projectId);
+    if (isTemplateProject(project) && project?.status === 'payment_confirmed') {
+      // Template: schedule setup
+      await handleStatusChange(projectId, 'setup_scheduled', {
+        setupSchedule: { status: 'scheduled', scheduledAt, scheduledDateStr }
+      });
+    } else {
+      // Regular: schedule interview
+      await handleStatusChange(projectId, 'interview_scheduled', {
+        interview: { status: 'scheduled', scheduledAt, scheduledDateStr }
+      });
+    }
+
     // Refresh selectedProject if it's the same project
     if (selectedProject?.id === projectId) {
       const updatedSnap = await getDoc(doc(db, 'projects', projectId));
@@ -572,6 +670,14 @@ const Projects = () => {
 
   // Get the next action button based on project status
   const getNextAction = (project) => {
+    // Template project flow: inquiry → assessed → awaiting_payment → payment_confirmed → setup_scheduled → for_review → delivered → completed
+    if (isTemplateProject(project)) {
+      return getTemplateNextAction(project);
+    }
+
+    // Check document blockers
+    const blockers = getDocumentBlockers(project);
+
     switch (project.status) {
       case 'inquiry':
         return null; // Waiting for AI assessment
@@ -605,11 +711,19 @@ const Projects = () => {
           action: () => handleStatusChange(project.id, 'interview_done', { interview: { ...project.interview, status: 'completed', completedAt: new Date() } }),
         };
       case 'interview_done':
+        if (!project.proposalData) {
+          return {
+            label: 'Generate Proposal',
+            color: 'bg-indigo-600 hover:bg-indigo-500',
+            action: () => handleGenerateProposal(project),
+            loading: generatingId === project.id,
+          };
+        }
         return {
-          label: 'Generate Proposal',
-          color: 'bg-indigo-600 hover:bg-indigo-500',
-          action: () => handleGenerateProposal(project),
-          loading: generatingId === project.id,
+          label: 'Send Proposal',
+          color: 'bg-blue-600 hover:bg-blue-500',
+          action: () => handleSendProposal(project.id),
+          loading: isSending === project.id,
         };
       case 'proposal_sent':
         return { label: 'Waiting for Client', color: 'bg-gray-600', action: null, disabled: true };
@@ -624,6 +738,9 @@ const Projects = () => {
           action: () => handleStatusChange(project.id, 'payment_confirmed'),
         };
       case 'payment_confirmed':
+        if (blockers.length > 0) {
+          return { label: '⚠️ Missing Documents', color: 'bg-yellow-600', action: null, disabled: true, blockers };
+        }
         return {
           label: 'Start Work',
           color: 'bg-purple-600 hover:bg-purple-500',
@@ -637,12 +754,68 @@ const Projects = () => {
           loading: isGeneratingPlan,
         };
       case 'planning':
+        if (!project.projectPlan) {
+          return { label: '⚠️ Plan Required', color: 'bg-yellow-600', action: null, disabled: true, blockers: ['Project plan must be generated before building'] };
+        }
         return {
           label: 'Start Building',
           color: 'bg-purple-600 hover:bg-purple-500',
           action: () => handleStatusChange(project.id, 'building'),
         };
       case 'building':
+        return {
+          label: 'Mark For Review',
+          color: 'bg-indigo-600 hover:bg-indigo-500',
+          action: () => handleStatusChange(project.id, 'for_review'),
+        };
+      case 'for_review':
+        return {
+          label: 'Mark Delivered',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'delivered'),
+        };
+      case 'delivered':
+        return {
+          label: 'Mark Completed',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'completed'),
+        };
+      case 'completed':
+        return { label: '✓ Completed', color: 'bg-green-700', action: null, disabled: true };
+      case 'cancelled':
+        return { label: '✗ Cancelled', color: 'bg-red-700', action: null, disabled: true };
+      default:
+        return null;
+    }
+  };
+
+  // Template project next action (simplified flow: payment → schedule setup → review & deliver → done)
+  const getTemplateNextAction = (project) => {
+    switch (project.status) {
+      case 'inquiry':
+        return null; // Waiting for AI assessment
+      case 'assessed':
+        return {
+          label: 'Send Payment Link',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleSendPaymentLink(project.id),
+          loading: isSending === project.id,
+        };
+      case 'awaiting_payment':
+        return { label: 'Awaiting Payment', color: 'bg-orange-600', action: null, disabled: true };
+      case 'payment_submitted':
+        return {
+          label: 'Confirm Payment',
+          color: 'bg-green-600 hover:bg-green-500',
+          action: () => handleStatusChange(project.id, 'payment_confirmed'),
+        };
+      case 'payment_confirmed':
+        return {
+          label: '📅 Schedule Setup',
+          color: 'bg-amber-600 hover:bg-amber-500',
+          action: () => { setScheduleModal(project.id); setScheduleDate(''); setScheduleTime(''); },
+        };
+      case 'setup_scheduled':
         return {
           label: 'Mark For Review',
           color: 'bg-indigo-600 hover:bg-indigo-500',
@@ -726,17 +899,38 @@ const Projects = () => {
     return timeline;
   };
 
-  const getProgressPercentage = (status) => {
+  const getProgressPercentage = (status, project) => {
+    // Template projects have different progress mapping
+    if (project && isTemplateProject(project)) {
+      const templateProgress = {
+        inquiry: 10,
+        assessed: 20,
+        awaiting_payment: 35,
+        payment_submitted: 50,
+        payment_confirmed: 60,
+        setup_scheduled: 75,
+        for_review: 85,
+        delivered: 95,
+        completed: 100,
+        cancelled: 0,
+      };
+      return templateProgress[status] || 10;
+    }
     const progress = {
       inquiry: 10,
-      assessed: 20,
-      proposal_sent: 30,
+      assessed: 15,
+      discovery_completed: 20,
+      interview_scheduled: 25,
+      interview_done: 30,
+      proposal_sent: 35,
       proposal_accepted: 40,
       awaiting_payment: 50,
-      payment_submitted: 60,
+      payment_submitted: 55,
+      payment_confirmed: 60,
       in_progress: 70,
       planning: 75,
       building: 85,
+      setup_scheduled: 80,
       for_review: 90,
       delivered: 95,
       completed: 100,
@@ -792,7 +986,7 @@ const Projects = () => {
 
       {/* Filter Bar */}
       <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           {/* Search */}
           <div className="relative">
             <input
@@ -841,6 +1035,17 @@ const Projects = () => {
             <option value="saas">SaaS Subscription</option>
           </select>
 
+          {/* Source Filter */}
+          <select
+            value={sourceFilter}
+            onChange={(e) => { setSourceFilter(e.target.value); setCurrentPage(1); }}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Sources</option>
+            <option value="template">📋 Template Inquiries</option>
+            <option value="inquiry">📝 Regular Inquiries</option>
+          </select>
+
           {/* Sort */}
           <select
             value={sortBy}
@@ -855,9 +1060,9 @@ const Projects = () => {
         </div>
 
         {/* Clear Filters */}
-        {(searchQuery || filterStatus !== 'all' || serviceFilter !== 'all' || paymentTypeFilter !== 'all') && (
+        {(searchQuery || filterStatus !== 'all' || serviceFilter !== 'all' || paymentTypeFilter !== 'all' || sourceFilter !== 'all') && (
           <button
-            onClick={() => { setSearchQuery(''); setFilterStatus('all'); setServiceFilter('all'); setPaymentTypeFilter('all'); setCurrentPage(1); }}
+            onClick={() => { setSearchQuery(''); setFilterStatus('all'); setServiceFilter('all'); setPaymentTypeFilter('all'); setSourceFilter('all'); setCurrentPage(1); }}
             className="mt-3 text-sm text-blue-400 hover:text-blue-300"
           >
             Clear all filters
@@ -885,6 +1090,11 @@ const Projects = () => {
                       <p className="text-white font-semibold truncate">{project.clientName || '-'}</p>
                       <p className="text-gray-400 text-sm truncate">{project.businessName || '-'}</p>
                       <p className="text-gray-500 text-xs">{getServicesDisplay(project.servicesNeeded)}</p>
+                      {project.source === 'template' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full text-[10px] font-bold mt-1">
+                          📋 Template: {project.templateName}
+                        </span>
+                      )}
                     </div>
                     <span className={`shrink-0 inline-block px-2 py-1 rounded-full text-xs text-white ${getStatusBadgeClass(project.status)}`}>
                       {project.status || 'inquiry'}
@@ -1079,12 +1289,12 @@ const Projects = () => {
               <div className="mb-3">
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                   <span>Progress</span>
-                  <span>{getProgressPercentage(project.status)}%</span>
+                  <span>{getProgressPercentage(project.status, project)}%</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${getProgressPercentage(project.status)}%` }}
+                    style={{ width: `${getProgressPercentage(project.status, project)}%` }}
                   ></div>
                 </div>
               </div>
@@ -1203,14 +1413,22 @@ const Projects = () => {
                   <h2 className="text-xl font-semibold text-white">{selectedProject.businessName}</h2>
                   <p className="text-gray-400 text-sm mt-1">Project ID: {selectedProject.id.slice(0, 8)}</p>
                 </div>
-                <button
-                  onClick={() => setSelectedProject(null)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDeleteProjectConfirm(selectedProject)}
+                    className="px-3 py-1.5 bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    🗑️ Delete
+                  </button>
+                  <button
+                    onClick={() => setSelectedProject(null)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1221,21 +1439,31 @@ const Projects = () => {
                 <div className="mb-4">
                   <p className="text-gray-400 text-xs mb-2">Project Progress</p>
                   {(() => {
-                    const phases = [
-                      { label: 'Inquiry', statuses: ['inquiry', 'assessed'] },
-                      ...(selectedProject.clientType !== 'student' ? [{ label: 'Discovery', statuses: ['discovery_completed'] }] : []),
-                      { label: 'Interview', statuses: ['interview_scheduled', 'interview_done'] },
-                      { label: 'Proposal', statuses: ['proposal_sent', 'proposal_accepted'] },
-                      { label: 'Payment', statuses: ['awaiting_payment', 'payment_submitted', 'payment_confirmed'] },
-                      { label: 'Planning', statuses: ['planning', 'in_progress'] },
-                      { label: 'Building', statuses: ['building'] },
-                      { label: 'Review', statuses: ['for_review'] },
-                      { label: 'Delivered', statuses: ['delivered', 'completed'] },
-                    ];
-                    const currentIdx = statusOrder.indexOf(selectedProject.status);
+                    // Template projects have a different, simpler flow
+                    const phases = isTemplateProject(selectedProject)
+                      ? [
+                        { label: 'Inquiry', statuses: ['inquiry', 'assessed'] },
+                        { label: 'Payment', statuses: ['awaiting_payment', 'payment_submitted', 'payment_confirmed'] },
+                        { label: 'Setup', statuses: ['setup_scheduled'] },
+                        { label: 'Review', statuses: ['for_review'] },
+                        { label: 'Delivered', statuses: ['delivered', 'completed'] },
+                      ]
+                      : [
+                        { label: 'Inquiry', statuses: ['inquiry', 'assessed'] },
+                        ...(selectedProject.clientType !== 'student' ? [{ label: 'Discovery', statuses: ['discovery_completed'] }] : []),
+                        { label: 'Interview', statuses: ['interview_scheduled', 'interview_done'] },
+                        { label: 'Proposal', statuses: ['proposal_sent', 'proposal_accepted'] },
+                        { label: 'Payment', statuses: ['awaiting_payment', 'payment_submitted', 'payment_confirmed'] },
+                        { label: 'Planning', statuses: ['planning', 'in_progress'] },
+                        { label: 'Building', statuses: ['building'] },
+                        { label: 'Review', statuses: ['for_review'] },
+                        { label: 'Delivered', statuses: ['delivered', 'completed'] },
+                      ];
+                    const activeStatusOrder = getStatusOrderForProject(selectedProject);
+                    const currentIdx = activeStatusOrder.indexOf(selectedProject.status);
                     const getPhaseStatus = (phase) => {
-                      const phaseMinIdx = Math.min(...phase.statuses.map(s => statusOrder.indexOf(s)).filter(i => i >= 0));
-                      const phaseMaxIdx = Math.max(...phase.statuses.map(s => statusOrder.indexOf(s)).filter(i => i >= 0));
+                      const phaseMinIdx = Math.min(...phase.statuses.map(s => activeStatusOrder.indexOf(s)).filter(i => i >= 0));
+                      const phaseMaxIdx = Math.max(...phase.statuses.map(s => activeStatusOrder.indexOf(s)).filter(i => i >= 0));
                       if (currentIdx > phaseMaxIdx) return 'completed';
                       if (currentIdx >= phaseMinIdx && currentIdx <= phaseMaxIdx) return 'current';
                       return 'pending';
@@ -1257,7 +1485,7 @@ const Projects = () => {
                               </span>
                             </div>
                             {idx < phases.length - 1 && (
-                              <div className={`w-6 sm:w-10 h-0.5 mx-1 ${getPhaseStatus(phase) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
+                              <div className={`w-8 sm:w-12 h-0.5 mx-1 flex-1 ${getPhaseStatus(phase) === 'completed' ? 'bg-green-500' : 'bg-gray-600'
                                 }`}></div>
                             )}
                           </div>
@@ -1266,6 +1494,18 @@ const Projects = () => {
                     );
                   })()}
                 </div>
+
+                {/* Document Blockers Warning */}
+                {getDocumentBlockers(selectedProject).length > 0 && (
+                  <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-yellow-400 text-sm font-medium mb-1">⚠️ Cannot proceed — missing requirements:</p>
+                    <ul className="list-disc list-inside text-yellow-300 text-xs space-y-1">
+                      {getDocumentBlockers(selectedProject).map((blocker, i) => (
+                        <li key={i}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Current Status</span>
@@ -1414,6 +1654,63 @@ const Projects = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Project Completeness Score */}
+                    {selectedProject.aiAssessment.projectCompleteness !== undefined && (
+                      <div className="pt-2 border-t border-gray-600">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-gray-400 text-xs">Project Requirement Completeness</p>
+                          <span className={`text-sm font-bold ${selectedProject.aiAssessment.projectCompleteness >= 80 ? 'text-green-400' :
+                            selectedProject.aiAssessment.projectCompleteness >= 60 ? 'text-yellow-400' :
+                              'text-red-400'
+                            }`}>
+                            {selectedProject.aiAssessment.projectCompleteness}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${selectedProject.aiAssessment.projectCompleteness >= 80 ? 'bg-green-500' :
+                              selectedProject.aiAssessment.projectCompleteness >= 60 ? 'bg-yellow-500' :
+                                'bg-red-500'
+                              }`}
+                            style={{ width: `${selectedProject.aiAssessment.projectCompleteness}%` }}
+                          ></div>
+                        </div>
+                        {selectedProject.aiAssessment.projectCompleteness < 70 && (
+                          <p className="text-red-400 text-xs mt-1">⚠️ Requirements are incomplete — clarification needed before proceeding</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unclear Items — PM Notes */}
+                    {selectedProject.aiAssessment.unclearItems && selectedProject.aiAssessment.unclearItems.length > 0 && (
+                      <div className="pt-2 border-t border-gray-600">
+                        <p className="text-gray-400 text-xs mb-1">📋 PM Notes — Unclear Items</p>
+                        <div className="flex flex-col gap-1 mt-1">
+                          {selectedProject.aiAssessment.unclearItems.map((item, i) => (
+                            <div key={i} className="flex items-start gap-2 text-amber-300 text-sm">
+                              <span className="shrink-0 mt-0.5">•</span>
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Required Clarifications */}
+                    {selectedProject.aiAssessment.requiredClarifications && selectedProject.aiAssessment.requiredClarifications.length > 0 && (
+                      <div className="pt-2 border-t border-gray-600">
+                        <p className="text-gray-400 text-xs mb-1">❓ Required Clarifications (Must answer before starting)</p>
+                        <div className="flex flex-col gap-1 mt-1">
+                          {selectedProject.aiAssessment.requiredClarifications.map((q, i) => (
+                            <div key={i} className="flex items-start gap-2 text-blue-300 text-sm bg-blue-500/10 px-3 py-2 rounded-lg">
+                              <span className="shrink-0 font-bold">{i + 1}.</span>
+                              <span>{q}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1544,7 +1841,7 @@ const Projects = () => {
                   {/* Generate Proposal — only after interview is done */}
                   {selectedProject.status === 'interview_done' && (
                     <button
-                      onClick={() => handleGenerateProposal(selectedProject)}
+                      onClick={async () => { await handleGenerateProposal(selectedProject); setSelectedProject(null); }}
                       disabled={generatingId === selectedProject.id}
                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                     >
@@ -1552,10 +1849,10 @@ const Projects = () => {
                     </button>
                   )}
 
-                  {/* Send Proposal — only after interview done */}
-                  {(selectedProject.status === 'interview_done' || selectedProject.status === 'assessed') && (
+                  {/* Send Proposal — only after interview done and proposal exists */}
+                  {(selectedProject.status === 'interview_done' && selectedProject.proposalData) && (
                     <button
-                      onClick={() => handleSendProposal(selectedProject.id)}
+                      onClick={async () => { await handleSendProposal(selectedProject.id); setSelectedProject(null); }}
                       disabled={isSending === selectedProject.id}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                     >
@@ -1564,7 +1861,7 @@ const Projects = () => {
                   )}
 
                   <button
-                    onClick={() => handleCopyProposalLink(selectedProject.id)}
+                    onClick={() => { handleCopyProposalLink(selectedProject.id); setSelectedProject(null); }}
                     className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     Copy Proposal Link
@@ -1586,7 +1883,7 @@ const Projects = () => {
 
                   {selectedProject.status === 'proposal_accepted' && (
                     <button
-                      onClick={() => handleSendPaymentLink(selectedProject.id)}
+                      onClick={async () => { await handleSendPaymentLink(selectedProject.id); setSelectedProject(null); }}
                       disabled={isSending === selectedProject.id}
                       className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                     >
@@ -1596,7 +1893,7 @@ const Projects = () => {
 
                   {selectedProject.status === 'proposal_accepted' && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'awaiting_payment')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'awaiting_payment'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Request Payment
@@ -1605,19 +1902,39 @@ const Projects = () => {
 
                   {selectedProject.status === 'payment_submitted' && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'payment_confirmed')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'payment_confirmed'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       ✅ Confirm Payment
                     </button>
                   )}
 
-                  {selectedProject.status === 'payment_confirmed' && (
+                  {selectedProject.status === 'payment_confirmed' && !isTemplateProject(selectedProject) && canAdvance(selectedProject) && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'in_progress')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'in_progress'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Start Work
+                    </button>
+                  )}
+
+                  {/* Template: Schedule Setup after payment confirmed */}
+                  {selectedProject.status === 'payment_confirmed' && isTemplateProject(selectedProject) && (
+                    <button
+                      onClick={() => { setScheduleModal(selectedProject.id); setScheduleDate(''); setScheduleTime(''); }}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      📅 Schedule Setup
+                    </button>
+                  )}
+
+                  {/* Template: Mark for review after setup */}
+                  {selectedProject.status === 'setup_scheduled' && (
+                    <button
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'for_review'); setSelectedProject(null); }}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Mark For Review
                     </button>
                   )}
 
@@ -1645,22 +1962,25 @@ const Projects = () => {
                     <>
                       <Link
                         to={`/admin/projects/${selectedProject.id}/plan`}
+                        onClick={() => setSelectedProject(null)}
                         className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors"
                       >
                         View Project Plan
                       </Link>
-                      <button
-                        onClick={() => handleStatusChange(selectedProject.id, 'building')}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Mark as Building
-                      </button>
+                      {selectedProject.projectPlan && (
+                        <button
+                          onClick={async () => { await handleStatusChange(selectedProject.id, 'building'); setSelectedProject(null); }}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Mark as Building
+                        </button>
+                      )}
                     </>
                   )}
 
                   {selectedProject.status === 'building' && selectedProject.projectPlan && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'for_review')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'for_review'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Mark as For Review
@@ -1689,7 +2009,8 @@ const Projects = () => {
                             console.error('Error creating final payment:', err);
                           }
                         }
-                        handleStatusChange(selectedProject.id, 'delivered');
+                        await handleStatusChange(selectedProject.id, 'delivered');
+                        setSelectedProject(null);
                       }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
@@ -1699,25 +2020,16 @@ const Projects = () => {
 
                   {selectedProject.status === 'delivered' && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'completed')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'completed'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Mark as Completed
                     </button>
                   )}
 
-                  {selectedProject.status === 'building' && !selectedProject.projectPlan && (
+                  {!['delivered', 'cancelled', 'completed'].includes(selectedProject.status) && (
                     <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'delivered')}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      Mark as Delivered
-                    </button>
-                  )}
-
-                  {!['delivered', 'cancelled'].includes(selectedProject.status) && (
-                    <button
-                      onClick={() => handleStatusChange(selectedProject.id, 'cancelled')}
+                      onClick={async () => { await handleStatusChange(selectedProject.id, 'cancelled'); setSelectedProject(null); }}
                       className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Cancel Project
@@ -1730,13 +2042,18 @@ const Projects = () => {
         </div>
       )}
 
-      {/* Schedule Interview Modal */}
+      {/* Schedule Interview/Setup Modal */}
       {scheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="bg-gray-800 rounded-lg max-w-sm w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white">📅 Schedule Interview</h2>
-              <button onClick={() => setScheduleModal(null)} className="text-gray-400 hover:text-white">
+              <h2 className="text-lg font-semibold text-white">
+                📅 {(() => {
+                  const proj = projects.find(p => p.id === scheduleModal);
+                  return (proj?.source === 'template' && proj?.status === 'payment_confirmed') ? 'Schedule Setup' : 'Schedule Interview';
+                })()}
+              </h2>
+              <button onClick={() => { setScheduleModal(null); setSelectedProject(null); }} className="text-gray-400 hover:text-white">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1764,18 +2081,18 @@ const Projects = () => {
               </div>
               {scheduleDate && scheduleTime && (
                 <p className="text-sm text-blue-400">
-                  Interview set for: <strong>{new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+                  Scheduled for: <strong>{new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
                 </p>
               )}
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => setScheduleModal(null)}
+                  onClick={() => { setScheduleModal(null); }}
                   className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleConfirmSchedule(scheduleModal)}
+                  onClick={async () => { await handleConfirmSchedule(scheduleModal); setSelectedProject(null); }}
                   disabled={!scheduleDate || !scheduleTime}
                   className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium disabled:opacity-50"
                 >
@@ -2005,6 +2322,19 @@ const Projects = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Project Confirmation */}
+      {deleteProjectConfirm && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setDeleteProjectConfirm(null)}
+          onConfirm={() => handleDeleteProject(deleteProjectConfirm)}
+          title="Delete Project"
+          message={`Are you sure you want to delete the project "${deleteProjectConfirm.businessName || deleteProjectConfirm.clientName}"? This will soft-delete the project and mark it as cancelled.`}
+          confirmText="Delete Project"
+          variant="danger"
+        />
       )}
 
       {/* Overlay for mobile */}

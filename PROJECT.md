@@ -125,6 +125,8 @@ VITE_CEREBRAS_API_KEY=       # Cerebras (fallback AI)
 ### Public / Client-Facing
 - 🏠 **Landing Page** — Agency homepage with services, hero, CTA
 - 📝 **Inquiry Form** — Clients submit project inquiries (AI-assessed instantly)
+- 🎨 **Templates** — Browse available pre-built templates and products
+- 🖼️ **Template Detail** — View detailed information and image previews for specific templates
 - 📄 **Proposal Page** — View AI-generated project proposal with pricing breakdown
 - 💳 **Payment Page** — Submit down payment with proof-of-payment upload
 - 🔍 **Discovery Form** — Detailed requirements gathering for active projects
@@ -145,6 +147,7 @@ VITE_CEREBRAS_API_KEY=       # Cerebras (fallback AI)
 - 🏆 **Portfolio** — Manage public-facing case studies
 - 🧾 **Billing** — SaaS subscription billing management
 - 🛠️ **Dev Dashboard** — Developer build progress and task tracker
+- 🎨 **Template Manager** — Admin dashboard for CRUD template management via Firestore
 - ⚙️ **Settings** — Agency info, payment methods configuration
 
 ---
@@ -662,6 +665,13 @@ firestore/
 │   │           ├── status        # submitted|analyzing|analyzed|fixed|closed
 │   │           └── createdAt
 │
+├── templates/                   # Template & product listings
+│   └── {templateId}
+│       ├── title, description, category
+│       ├── price, previewUrl, isPremium
+│       ├── features[]
+│       └── createdAt
+│
 ├── payments/                    # Payment records
 │   └── {paymentId}
 │       ├── projectId, clientName
@@ -720,6 +730,8 @@ cancelled  (can occur at any stage)
 |---|---|---|
 | `/` | Landing | Agency homepage |
 | `/inquiry` | Inquiry | New project inquiry form |
+| `/templates` | Templates | Browse available pre-built templates and products |
+| `/templates/:id` | TemplateDetail | View specific template details |
 | `/proposal/:id` | Proposal | View AI-generated proposal |
 | `/payment/:id` | Payment | Submit down/final payment |
 | `/delivery/:id` | Delivery | View & accept project delivery |
@@ -750,6 +762,7 @@ cancelled  (can occur at any stage)
 | `/admin/portfolio` | Portfolio | Portfolio management |
 | `/admin/billing` | Billing | SaaS billing management |
 | `/admin/dev-dashboard` | DevDashboard | Developer build tracker |
+| `/admin/templates-manager` | TemplateManager | Template management |
 | `/admin/settings` | Settings | Agency settings |
 | `/admin/change-password` | ChangePassword | Admin password change |
 

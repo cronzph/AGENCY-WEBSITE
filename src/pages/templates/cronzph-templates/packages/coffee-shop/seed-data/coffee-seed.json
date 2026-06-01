@@ -1,0 +1,211 @@
+{
+    "products": [
+        {
+            "name": "Americano",
+            "category": "Hot Coffee",
+            "price": 120,
+            "emoji": "☕",
+            "description": "Bold espresso with hot water for a clean, rich flavor.",
+            "available": true
+        },
+        {
+            "name": "Latte",
+            "category": "Hot Coffee",
+            "price": 150,
+            "emoji": "🥛",
+            "description": "Smooth espresso with steamed milk and light foam.",
+            "available": true
+        },
+        {
+            "name": "Cappuccino",
+            "category": "Hot Coffee",
+            "price": 140,
+            "emoji": "☕",
+            "description": "Equal parts espresso, steamed milk, and foam.",
+            "available": true
+        },
+        {
+            "name": "Matcha Latte",
+            "category": "Specialty",
+            "price": 170,
+            "emoji": "🍵",
+            "description": "Premium matcha powder with steamed milk.",
+            "available": true
+        },
+        {
+            "name": "Cold Brew",
+            "category": "Iced Coffee",
+            "price": 160,
+            "emoji": "🧊",
+            "description": "Slow-steeped for 12 hours, smooth and refreshing.",
+            "available": true
+        }
+    ],
+    "orders": [
+        {
+            "items": [
+                {
+                    "name": "Americano",
+                    "quantity": 2,
+                    "price": 120
+                },
+                {
+                    "name": "Latte",
+                    "quantity": 1,
+                    "price": 150
+                }
+            ],
+            "total": 390,
+            "status": "completed",
+            "timestamp": "2025-05-18T08:15:00.000Z",
+            "customerName": "Juan Dela Cruz"
+        },
+        {
+            "items": [
+                {
+                    "name": "Cappuccino",
+                    "quantity": 1,
+                    "price": 140
+                }
+            ],
+            "total": 140,
+            "status": "completed",
+            "timestamp": "2025-05-18T09:30:00.000Z",
+            "customerName": "Maria Santos"
+        },
+        {
+            "items": [
+                {
+                    "name": "Matcha Latte",
+                    "quantity": 2,
+                    "price": 170
+                },
+                {
+                    "name": "Cold Brew",
+                    "quantity": 1,
+                    "price": 160
+                }
+            ],
+            "total": 500,
+            "status": "pending",
+            "timestamp": "2025-05-18T10:45:00.000Z",
+            "customerName": "Pedro Reyes"
+        },
+        {
+            "items": [
+                {
+                    "name": "Cold Brew",
+                    "quantity": 3,
+                    "price": 160
+                }
+            ],
+            "total": 480,
+            "status": "completed",
+            "timestamp": "2025-05-17T08:00:00.000Z",
+            "customerName": "Ana Garcia"
+        },
+        {
+            "items": [
+                {
+                    "name": "Latte",
+                    "quantity": 2,
+                    "price": 150
+                },
+                {
+                    "name": "Americano",
+                    "quantity": 1,
+                    "price": 120
+                }
+            ],
+            "total": 420,
+            "status": "completed",
+            "timestamp": "2025-05-17T11:20:00.000Z",
+            "customerName": "Carlos Mendoza"
+        },
+        {
+            "items": [
+                {
+                    "name": "Cappuccino",
+                    "quantity": 2,
+                    "price": 140
+                },
+                {
+                    "name": "Matcha Latte",
+                    "quantity": 1,
+                    "price": 170
+                }
+            ],
+            "total": 450,
+            "status": "preparing",
+            "timestamp": "2025-05-17T14:05:00.000Z",
+            "customerName": "Sofia Villanueva"
+        },
+        {
+            "items": [
+                {
+                    "name": "Americano",
+                    "quantity": 1,
+                    "price": 120
+                }
+            ],
+            "total": 120,
+            "status": "completed",
+            "timestamp": "2025-05-16T07:30:00.000Z",
+            "customerName": "Miguel Torres"
+        },
+        {
+            "items": [
+                {
+                    "name": "Latte",
+                    "quantity": 1,
+                    "price": 150
+                },
+                {
+                    "name": "Cold Brew",
+                    "quantity": 2,
+                    "price": 160
+                }
+            ],
+            "total": 470,
+            "status": "completed",
+            "timestamp": "2025-05-16T13:15:00.000Z",
+            "customerName": "Isabella Cruz"
+        },
+        {
+            "items": [
+                {
+                    "name": "Matcha Latte",
+                    "quantity": 3,
+                    "price": 170
+                }
+            ],
+            "total": 510,
+            "status": "cancelled",
+            "timestamp": "2025-05-15T09:00:00.000Z",
+            "customerName": "Rafael Aquino"
+        },
+        {
+            "items": [
+                {
+                    "name": "Cappuccino",
+                    "quantity": 1,
+                    "price": 140
+                },
+                {
+                    "name": "Americano",
+                    "quantity": 2,
+                    "price": 120
+                },
+                {
+                    "name": "Cold Brew",
+                    "quantity": 1,
+                    "price": 160
+                }
+            ],
+            "total": 540,
+            "status": "completed",
+            "timestamp": "2025-05-15T15:45:00.000Z",
+            "customerName": "Elena Bautista"
+        }
+    ]
+}

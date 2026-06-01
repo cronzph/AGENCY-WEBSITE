@@ -62,7 +62,13 @@ const ClientLogin = () => {
             const foundProjects = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            })).filter(p => !p.deleted); // Exclude soft-deleted projects
+
+            if (foundProjects.length === 0) {
+                setError('No projects found for this email address.');
+                setIsLoading(false);
+                return;
+            }
 
             // Check if any project has a password set
             const hasPassword = foundProjects.some(p => p.clientPassword);

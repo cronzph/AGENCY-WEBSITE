@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { templates } from '../../utils/templateData';
 
 const Landing = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -273,6 +274,7 @@ const Landing = () => {
               <button onClick={() => scrollToSection('quick-fix')} className="text-gray-300 hover:text-white transition-colors">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="text-gray-300 hover:text-white transition-colors">Why Us</button>
               <button onClick={() => scrollToSection('portfolio')} className="text-gray-300 hover:text-white transition-colors">Portfolio</button>
+              <Link to="/templates" className="text-gray-300 hover:text-white transition-colors">Templates</Link>
               <Link to="/portal/login" className="px-5 py-2.5 text-gray-300 hover:text-white transition-colors">
                 Client Portal
               </Link>
@@ -304,6 +306,7 @@ const Landing = () => {
               <button onClick={() => scrollToSection('quick-fix')} className="block w-full text-left text-gray-300 hover:text-white py-2">Quick Fix</button>
               <button onClick={() => scrollToSection('why-us')} className="block w-full text-left text-gray-300 hover:text-white py-2">Why Us</button>
               <button onClick={() => scrollToSection('portfolio')} className="block w-full text-left text-gray-300 hover:text-white py-2">Portfolio</button>
+              <Link to="/templates" className="block w-full text-left text-gray-300 hover:text-white py-2">Templates</Link>
               <Link to="/portal/login" className="block px-4 py-2 text-gray-300 hover:text-white transition-colors">
                 Client Portal
               </Link>
@@ -911,14 +914,80 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Ready-to-Deploy Templates Section */}
+      <section id="templates" className="py-20 bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 bg-green-600/20 text-green-400 text-sm font-semibold rounded-full mb-4">
+              ⚡ FASTER OPTION
+            </span>
+            <h2 className="text-4xl font-bold mb-4 text-white">Ready-to-Deploy Templates</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto">
+              Skip the wait. Pick a pre-built system, we set it up for you, and you're live in days — not weeks.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            {templates.map((t) => (
+              <Link
+                key={t.id}
+                to={`/templates/${t.id}`}
+                className="group bg-gray-900/80 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <img
+                    src={t.image}
+                    alt={t.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold backdrop-blur-md"
+                      style={{ background: `${t.color}30`, color: t.color }}
+                    >
+                      {t.category}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{t.name}</h3>
+                  <p className="text-gray-400 text-sm mt-1 line-clamp-1">{t.tagline}</p>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="font-bold text-sm" style={{ color: t.color }}>{t.price}</span>
+                    <span className="text-green-400 text-xs font-medium">⚡ {t.setupTime}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <Link
+              to="/templates"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-all hover:scale-105"
+            >
+              Browse All Templates
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-4 text-white">Ready to build your system?</h2>
           <p className="text-xl text-gray-300 mb-8">Get a free detailed proposal — no commitment, no monthly lock-in.</p>
-          <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
-            Start Your Project
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
+              Start Custom Project
+            </Link>
+            <Link to="/templates" className="inline-block px-10 py-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
+              Browse Templates
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -936,6 +1005,7 @@ const Landing = () => {
               <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <div className="space-y-2">
                 <Link to="/inquiry" className="block text-gray-400 hover:text-white transition-colors">Get Started</Link>
+                <Link to="/templates" className="block text-gray-400 hover:text-white transition-colors">Templates</Link>
                 <button onClick={() => scrollToSection('services')} className="block text-gray-400 hover:text-white transition-colors text-left">Services</button>
                 <button onClick={() => scrollToSection('pricing')} className="block text-gray-400 hover:text-white transition-colors text-left">Pricing</button>
               </div>
