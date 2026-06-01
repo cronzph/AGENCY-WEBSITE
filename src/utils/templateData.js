@@ -7,6 +7,28 @@ import posImg from '../assets/templates/pos.png';
 import landingImg from '../assets/templates/landing.png';
 import coffeeshopImg from '../assets/templates/coffeeshop.png';
 
+// Map of template IDs to their bundled image assets
+// This ensures images always resolve correctly regardless of environment
+const templateImageMap = {
+  'e-commerce': ecommerceImg,
+  'pos': posImg,
+  'landing': landingImg,
+  'coffee-shop': coffeeshopImg,
+};
+
+/**
+ * Resolve the image for a template — always use bundled assets for known IDs,
+ * fall back to whatever is stored (URL string) for custom templates.
+ */
+const resolveTemplateImage = (template) => {
+  // If we have a bundled asset for this template ID, always use it
+  if (templateImageMap[template.id]) {
+    return templateImageMap[template.id];
+  }
+  // Otherwise use whatever is stored (could be a URL for custom templates)
+  return template.image || '';
+};
+
 // ── Static seed data (used for seeding Firestore + local fallback) ──
 export const staticTemplates = [
   {
@@ -217,7 +239,10 @@ export const fetchTemplates = async () => {
       return staticTemplates.filter(t => t.active !== false);
     }
     return snapshot.docs
-      .map(d => ({ id: d.id, ...d.data() }))
+      .map(d => {
+        const t = { id: d.id, ...d.data() };
+        return { ...t, image: resolveTemplateImage(t) };
+      })
       .filter(t => t.active !== false);
   } catch (err) {
     console.error('Error fetching templates from Firestore:', err);
@@ -233,7 +258,10 @@ export const fetchAllTemplates = async () => {
     const q = query(collection(db, 'templates'), orderBy('sortOrder', 'asc'));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return staticTemplates;
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map(d => {
+      const t = { id: d.id, ...d.data() };
+      return { ...t, image: resolveTemplateImage(t) };
+    });
   } catch (err) {
     console.error('Error fetching templates:', err);
     return staticTemplates;
@@ -249,7 +277,8 @@ export const fetchTemplateById = async (id) => {
     const docRef = doc(db, 'templates', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
+      const t = { id: docSnap.id, ...docSnap.data() };
+      return { ...t, image: resolveTemplateImage(t) };
     }
     // Fallback to static
     return staticTemplates.find(t => t.id === id) || null;
