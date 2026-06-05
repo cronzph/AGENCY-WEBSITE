@@ -4,6 +4,25 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, increment, query, 
 import { createNotifications } from '../../utils/notifications';
 import { getAgencyName } from '../../utils/settings';
 
+// Logs a promo usage event to Firestore
+const logPromoUsage = async ({ promoId, promoCode, projectId, clientName, email, templateName, discountType, discountValue }) => {
+  try {
+    await addDoc(collection(db, 'promoUsage'), {
+      promoId,
+      promoCode,
+      projectId,
+      clientName,
+      email,
+      templateName,
+      discountType,
+      discountValue,
+      usedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('Failed to log promo usage:', err);
+  }
+};
+
 const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -184,7 +203,7 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
 
       const docRef = await addDoc(collection(db, 'projects'), payload);
 
-      // Increment promo used slots if promo was applied
+      // Increment promo used slots and log usage if promo was applied
       if (appliedPromo) {
         try {
           await updateDoc(doc(db, 'promos', appliedPromo.id), {
@@ -193,6 +212,17 @@ const TemplateInquiryModal = ({ template, isOpen, onClose }) => {
         } catch (promoErr) {
           console.error('Failed to update promo slots:', promoErr);
         }
+        // Log promo usage for history tracking
+        await logPromoUsage({
+          promoId: appliedPromo.id,
+          promoCode: appliedPromo.code,
+          projectId: docRef.id,
+          clientName: formData.fullName.trim(),
+          email: formData.email.trim().toLowerCase(),
+          templateName: template.name,
+          discountType: appliedPromo.discountType,
+          discountValue: appliedPromo.discountValue,
+        });
       }
 
       // Trigger notification

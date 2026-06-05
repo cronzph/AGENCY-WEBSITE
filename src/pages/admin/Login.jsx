@@ -11,14 +11,14 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Forgot password modal states
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
-  
+
   const navigate = useNavigate();
 
   const getFriendlyError = (errorCode) => {
@@ -87,14 +87,14 @@ const Login = () => {
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setForgotError('');
-    
+
     if (!forgotEmail.trim()) {
       setForgotError('Please enter your email.');
       return;
     }
-    
+
     setForgotLoading(true);
-    
+
     try {
       await sendPasswordResetEmail(auth, forgotEmail);
       setForgotSuccess(true);
@@ -114,9 +114,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-gray-800 rounded-lg shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      {/* Background Orbs */}
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="glass-card rounded-2xl p-8">
           <h1 className="text-2xl font-bold text-white text-center mb-8">
             Admin Login
           </h1>
@@ -132,7 +136,7 @@ const Login = () => {
                 value={identifier}
                 onChange={handleIdentifierChange}
                 required
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 glass-input rounded-xl text-white placeholder-gray-400 focus:outline-none"
                 placeholder="Enter your username or email"
               />
             </div>
@@ -148,7 +152,7 @@ const Login = () => {
                   value={password}
                   onChange={handlePasswordChange}
                   required
-                  className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-12 glass-input rounded-xl text-white placeholder-gray-400 focus:outline-none"
                   placeholder="••••••••"
                 />
                 <button
@@ -163,7 +167,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(true)}
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                  className="text-sm text-gray-400 hover:text-blue-400 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -171,13 +175,13 @@ const Login = () => {
             </div>
 
             {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
+              <p className="text-red-400 text-sm text-center">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
@@ -187,12 +191,12 @@ const Login = () => {
 
       {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+          <div className="glass-modal rounded-2xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-white mb-2">
               Reset Password
             </h2>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-400 text-sm mb-4">
               Enter your email address and we'll send you a reset link.
             </p>
 
@@ -206,18 +210,18 @@ const Login = () => {
                       setForgotEmail(e.target.value);
                       if (forgotError) setForgotError('');
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 glass-input rounded-xl text-white placeholder-gray-400 focus:outline-none"
                     placeholder="Enter your email"
                   />
                   {forgotError && (
-                    <p className="text-red-500 text-sm mt-1">{forgotError}</p>
+                    <p className="text-red-400 text-sm mt-1">{forgotError}</p>
                   )}
                 </div>
 
                 <button
                   type="submit"
                   disabled={forgotLoading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+                  className="w-full bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-2 shadow-lg shadow-blue-500/20"
                 >
                   {forgotLoading ? 'Sending...' : 'Send Reset Link'}
                 </button>
@@ -225,20 +229,20 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={closeForgotModal}
-                  className="w-full text-gray-600 hover:text-gray-800 text-sm py-2"
+                  className="w-full text-gray-400 hover:text-white text-sm py-2 transition-colors"
                 >
                   Cancel
                 </button>
               </form>
             ) : (
               <div className="text-center">
-                <p className="text-green-600 text-sm mb-4">
+                <p className="text-green-400 text-sm mb-4">
                   Reset link sent! Check your email.
                 </p>
                 <button
                   type="button"
                   onClick={closeForgotModal}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                  className="w-full bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
                 >
                   Close
                 </button>

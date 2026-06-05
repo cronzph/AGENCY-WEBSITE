@@ -257,9 +257,14 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen text-white relative">
+      {/* Background Orbs */}
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+      <div className="bg-orb bg-orb-3" />
+
       {/* Navbar - Full Width */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-gray-900/95 backdrop-blur-sm shadow-lg' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'glass-header shadow-lg' : 'bg-transparent'}`}>
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="text-2xl font-bold text-white">
@@ -278,7 +283,7 @@ const Landing = () => {
               <Link to="/portal/login" className="px-5 py-2.5 text-gray-300 hover:text-white transition-colors">
                 Client Portal
               </Link>
-              <Link to="/inquiry" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
+              <Link to="/inquiry" className="px-5 py-2 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-lg font-medium transition-all shadow-lg shadow-blue-500/20">
                 Get Started
               </Link>
             </div>
@@ -298,7 +303,7 @@ const Landing = () => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-gray-800 border-t border-gray-700">
+          <div className="md:hidden glass border-t border-white/[0.08]">
             <div className="px-4 py-4 space-y-3">
               <button onClick={() => scrollToSection('services')} className="block w-full text-left text-gray-300 hover:text-white py-2">Services</button>
               <button onClick={() => scrollToSection('pricing')} className="block w-full text-left text-gray-300 hover:text-white py-2">Pricing</button>
@@ -321,7 +326,7 @@ const Landing = () => {
       {/* Hero Section - Full Width */}
       <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900/20 to-gray-900"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-blue-900/10 to-transparent"></div>
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
@@ -338,10 +343,10 @@ const Landing = () => {
             Build modern digital solutions for your business.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/inquiry" className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
+            <Link to="/inquiry" className="px-8 py-4 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-xl font-semibold text-lg transition-all hover:scale-105 shadow-lg shadow-blue-500/25">
               Start Your Project
             </Link>
-            <Link to="/portal/login" className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold text-lg border border-gray-700 transition-all">
+            <Link to="/portal/login" className="px-8 py-4 glass-card-hover text-white rounded-xl font-semibold text-lg transition-all">
               Track Your Project
             </Link>
           </div>
@@ -352,7 +357,7 @@ const Landing = () => {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="py-20 bg-gray-800/50">
+      <section id="services" className="py-20 bg-white/[0.02]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">What We Build</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -363,7 +368,7 @@ const Landing = () => {
             {services.map((service, idx) => (
               <div
                 key={idx}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:transform hover:-translate-y-1 transition-all duration-300 group"
+                className="glass-card-hover rounded-xl p-6 group"
               >
                 <div className="text-4xl mb-4">{service.icon}</div>
                 <h3 className="text-lg font-semibold mb-2 text-white group-hover:text-blue-400 transition-colors">{service.title}</h3>
@@ -375,7 +380,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gray-950">
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-16 text-white">How It Works</h2>
 
@@ -387,7 +392,7 @@ const Landing = () => {
               { step: 4, icon: '🚀', title: 'Get Delivered', desc: 'Your project gets built and delivered' },
             ].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-600/80 to-purple-600/80 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-blue-500/20 mb-4">
                   {item.icon}
                 </div>
                 <h3 className="font-semibold text-lg mb-1 text-white">{item.step}. {item.title}</h3>
@@ -402,7 +407,7 @@ const Landing = () => {
       </section>
 
       {/* Build Pricing Section - PRIMARY */}
-      <section id="pricing" className="py-20 bg-gray-800/50">
+      <section id="pricing" className="py-20 bg-white/[0.02]">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <span className="inline-block px-4 py-1.5 bg-blue-600/20 text-blue-400 text-sm font-semibold rounded-full mb-4">
@@ -416,7 +421,7 @@ const Landing = () => {
 
           {/* Payment Split Banner */}
           <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-full text-sm">
+            <div className="flex items-center gap-2 px-4 py-2 glass border border-white/[0.1] rounded-full text-sm">
               <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
               <span className="text-gray-300">50% Down Payment</span>
               <span className="text-gray-500">→</span>
@@ -430,7 +435,7 @@ const Landing = () => {
             {buildTiers.map((tier, idx) => (
               <div
                 key={idx}
-                className={`relative bg-gray-800 border rounded-xl p-6 transition-all hover:transform hover:-translate-y-1 duration-300 flex flex-col ${tier.recommended ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-700'}`}
+                className={`relative glass-card-hover rounded-xl p-6 flex flex-col ${tier.recommended ? 'border-blue-500/50 ring-2 ring-blue-500/20' : ''}`}
               >
                 {tier.recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
@@ -452,8 +457,8 @@ const Landing = () => {
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-500 mb-4 border-t border-gray-700 pt-3">{tier.payment}</p>
-                <Link to="/inquiry" className="block text-center px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium text-sm transition-all hover:scale-105">
+                <p className="text-xs text-gray-500 mb-4 border-t border-white/[0.08] pt-3">{tier.payment}</p>
+                <Link to="/inquiry" className="block text-center px-4 py-2.5 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-lg font-medium text-sm transition-all hover:scale-105 shadow-lg shadow-blue-500/20">
                   Start Project
                 </Link>
               </div>
@@ -467,7 +472,7 @@ const Landing = () => {
       </section>
 
       {/* Per-Scope Pricing Table */}
-      <section id="scope-pricing" className="py-20 bg-gray-950">
+      <section id="scope-pricing" className="py-20">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Pricing Per Scope</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -475,27 +480,27 @@ const Landing = () => {
           </p>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-900 border border-gray-700 rounded-xl">
+            <table className="min-w-full glass-card rounded-xl overflow-hidden">
               <thead>
-                <tr className="bg-gray-800">
-                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Scope / Project Type</th>
-                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Price Range</th>
-                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Est. Delivery</th>
-                  <th className="p-4 border-b border-gray-700 text-left text-white font-semibold">Complexity</th>
+                <tr className="bg-white/[0.03]">
+                  <th className="p-4 border-b border-white/[0.08] text-left text-white font-semibold">Scope / Project Type</th>
+                  <th className="p-4 border-b border-white/[0.08] text-left text-white font-semibold">Price Range</th>
+                  <th className="p-4 border-b border-white/[0.08] text-left text-white font-semibold">Est. Delivery</th>
+                  <th className="p-4 border-b border-white/[0.08] text-left text-white font-semibold">Complexity</th>
                 </tr>
               </thead>
               <tbody>
                 {scopePricing.map((item, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}>
-                    <td className="p-4 border-t border-gray-800 text-gray-200 font-medium">{item.scope}</td>
-                    <td className="p-4 border-t border-gray-800 text-blue-400 font-semibold">{item.price}</td>
-                    <td className="p-4 border-t border-gray-800 text-gray-300">{item.delivery}</td>
-                    <td className="p-4 border-t border-gray-800">
+                  <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-white/[0.02]'}>
+                    <td className="p-4 border-t border-white/[0.05] text-gray-200 font-medium">{item.scope}</td>
+                    <td className="p-4 border-t border-white/[0.05] text-blue-400 font-semibold">{item.price}</td>
+                    <td className="p-4 border-t border-white/[0.05] text-gray-300">{item.delivery}</td>
+                    <td className="p-4 border-t border-white/[0.05]">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${item.complexity === 'Simple' ? 'bg-green-900/30 text-green-400' :
-                          item.complexity === 'Standard' ? 'bg-blue-900/30 text-blue-400' :
-                            item.complexity === 'Advanced' ? 'bg-purple-900/30 text-purple-400' :
-                              item.complexity === 'Enterprise' ? 'bg-orange-900/30 text-orange-400' :
-                                'bg-blue-900/30 text-blue-400'
+                        item.complexity === 'Standard' ? 'bg-blue-900/30 text-blue-400' :
+                          item.complexity === 'Advanced' ? 'bg-purple-900/30 text-purple-400' :
+                            item.complexity === 'Enterprise' ? 'bg-orange-900/30 text-orange-400' :
+                              'bg-blue-900/30 text-blue-400'
                         }`}>
                         {item.complexity}
                       </span>
@@ -507,7 +512,7 @@ const Landing = () => {
           </div>
 
           <div className="mt-6 text-center">
-            <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all hover:scale-105">
+            <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-lg font-medium transition-all hover:scale-105 shadow-lg shadow-blue-500/20">
               Get a Free Detailed Proposal
             </Link>
           </div>
@@ -515,13 +520,13 @@ const Landing = () => {
       </section>
 
       {/* Why Choose Us */}
-      <section id="why-us" className="py-20 bg-gray-950">
+      <section id="why-us" className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-12 text-white">Why CronzPH?</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {whyUs.map((item, idx) => (
-              <div key={idx} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/30 transition-colors">
+              <div key={idx} className="glass-card-hover rounded-xl p-6">
                 <div className="text-3xl mb-4">{item.icon}</div>
                 <h3 className="text-lg font-semibold mb-2 text-white">{item.title}</h3>
                 <p className="text-gray-300">{item.desc}</p>
@@ -532,7 +537,7 @@ const Landing = () => {
       </section>
 
       {/* Portfolio Section */}
-      <section id="portfolio" className="py-20 bg-gray-900">
+      <section id="portfolio" className="py-20 bg-white/[0.02]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Our Portfolio</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -543,9 +548,9 @@ const Landing = () => {
           <div className="flex flex-wrap justify-center gap-3 mb-10">
             <button
               onClick={() => setPortfolioFilter('all')}
-              className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              className={`px-5 py-2 rounded-lg font-medium transition-all ${portfolioFilter === 'all'
+                ? 'bg-blue-600/80 text-white shadow-lg shadow-blue-500/20'
+                : 'glass text-gray-300 hover:bg-white/[0.08]'
                 }`}
             >
               All
@@ -554,9 +559,9 @@ const Landing = () => {
               <button
                 key={type}
                 onClick={() => setPortfolioFilter(type)}
-                className={`px-5 py-2 rounded-lg font-medium transition-colors ${portfolioFilter === type
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                className={`px-5 py-2 rounded-lg font-medium transition-all ${portfolioFilter === type
+                  ? 'bg-blue-600/80 text-white shadow-lg shadow-blue-500/20'
+                  : 'glass text-gray-300 hover:bg-white/[0.08]'
                   }`}
               >
                 {type}
@@ -572,7 +577,7 @@ const Landing = () => {
               {portfolioItems
                 .filter(item => portfolioFilter === 'all' || item.projectType === portfolioFilter)
                 .map(item => (
-                  <div key={item.id} className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden hover:border-blue-500/30 transition-colors group">
+                  <div key={item.id} className="glass-card-hover rounded-xl overflow-hidden group">
                     {item.thumbnail && (
                       <div className="aspect-video bg-gray-700 overflow-hidden">
                         <img
@@ -618,7 +623,7 @@ const Landing = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-gray-950">
+      <section id="testimonials" className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">What Our Clients Say</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -630,7 +635,7 @@ const Landing = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {testimonials.map(testimonial => (
-                <div key={testimonial.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/30 transition-colors">
+                <div key={testimonial.id} className="glass-card-hover rounded-xl p-6">
                   <div className="flex items-center mb-3">
                     {[...Array(5)].map((_, i) => (
                       <svg
@@ -657,7 +662,7 @@ const Landing = () => {
       </section>
 
       {/* Optional Maintenance Plans */}
-      <section id="maintenance" className="py-20 bg-gray-800/50">
+      <section id="maintenance" className="py-20 bg-white/[0.02]">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <span className="inline-block px-4 py-1.5 bg-purple-600/20 text-purple-400 text-sm font-semibold rounded-full mb-4">
@@ -673,7 +678,7 @@ const Landing = () => {
             {maintenanceTiers.map((tier, idx) => (
               <div
                 key={idx}
-                className={`relative bg-gray-800 border rounded-xl p-5 transition-all hover:transform hover:-translate-y-1 duration-300 ${tier.recommended ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-gray-700'}`}
+                className={`relative glass-card-hover rounded-xl p-5 ${tier.recommended ? 'border-purple-500/50 ring-2 ring-purple-500/20' : ''}`}
               >
                 {tier.recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
@@ -697,42 +702,42 @@ const Landing = () => {
             ))}
           </div>
 
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 mb-6">
+          <div className="glass-card rounded-xl p-6 mb-6">
             <h3 className="text-lg font-bold text-white mb-4">💡 No Maintenance Plan? Here's what fixes cost after the 30-day warranty:</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-gray-300 text-sm">
                 <thead>
                   <tr>
-                    <th className="p-3 border-b border-gray-700 text-white">Bug Type</th>
-                    <th className="p-3 border-b border-gray-700 text-white">Warranty (30 days)</th>
-                    <th className="p-3 border-b border-gray-700 text-white">After Warranty</th>
-                    <th className="p-3 border-b border-gray-700 text-white">With Plan</th>
+                    <th className="p-3 border-b border-white/[0.08] text-white">Bug Type</th>
+                    <th className="p-3 border-b border-white/[0.08] text-white">Warranty (30 days)</th>
+                    <th className="p-3 border-b border-white/[0.08] text-white">After Warranty</th>
+                    <th className="p-3 border-b border-white/[0.08] text-white">With Plan</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="p-3 border-t border-gray-800">Minor (cosmetic)</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
-                    <td className="p-3 border-t border-gray-800 text-yellow-400">FREE always</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
+                    <td className="p-3 border-t border-white/[0.05]">Minor (cosmetic)</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-white/[0.05] text-yellow-400">FREE always</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t border-gray-800">Medium (broken feature)</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
-                    <td className="p-3 border-t border-gray-800 text-red-400">₱1,000–₱2,500</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
+                    <td className="p-3 border-t border-white/[0.05]">Medium (broken feature)</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-white/[0.05] text-red-400">₱1,000–₱2,500</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t border-gray-800">Major (core broken)</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
-                    <td className="p-3 border-t border-gray-800 text-red-400">₱2,500–₱5,000</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
+                    <td className="p-3 border-t border-white/[0.05]">Major (core broken)</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-white/[0.05] text-red-400">₱2,500–₱5,000</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">Included ✅</td>
                   </tr>
                   <tr>
-                    <td className="p-3 border-t border-gray-800">Critical (system down)</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">FREE ✅</td>
-                    <td className="p-3 border-t border-gray-800 text-red-400">₱5,000+</td>
-                    <td className="p-3 border-t border-gray-800 text-green-400">Included ✅</td>
+                    <td className="p-3 border-t border-white/[0.05]">Critical (system down)</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">FREE ✅</td>
+                    <td className="p-3 border-t border-white/[0.05] text-red-400">₱5,000+</td>
+                    <td className="p-3 border-t border-white/[0.05] text-green-400">Included ✅</td>
                   </tr>
                 </tbody>
               </table>
@@ -748,7 +753,7 @@ const Landing = () => {
 
 
       {/* Students/Capstone Section */}
-      <section id="students" className="py-20 bg-gray-800/50">
+      <section id="students" className="py-20 bg-white/[0.02]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Students & Capstone Projects</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -757,35 +762,35 @@ const Landing = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {/* Simple Capstone */}
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6">
               <h3 className="text-xl font-bold text-white mb-3">Simple Capstone</h3>
               <p className="text-gray-300 mb-2">₱3,000-₱8,000</p>
               <p className="text-gray-400 text-sm mb-3">Basic functionality, minimal features</p>
             </div>
 
             {/* Medium Capstone */}
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6">
               <h3 className="text-xl font-bold text-white mb-3">Medium Capstone</h3>
               <p className="text-gray-300 mb-2">₱8,000-₱15,000</p>
               <p className="text-gray-400 text-sm mb-3">Standard features, moderate complexity</p>
             </div>
 
             {/* Complex Capstone */}
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6">
               <h3 className="text-xl font-bold text-white mb-3">Complex Capstone</h3>
               <p className="text-gray-300 mb-2">₱15,000-₱25,000</p>
               <p className="text-gray-400 text-sm mb-3">Advanced features, high complexity</p>
             </div>
 
             {/* School Activity System */}
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6">
               <h3 className="text-xl font-bold text-white mb-3">School Activity System</h3>
               <p className="text-gray-300 mb-2">₱1,500-₱5,000</p>
               <p className="text-gray-400 text-sm mb-3">Event management, attendance tracking, etc.</p>
             </div>
           </div>
 
-          <div className="mt-8 p-6 bg-gray-900 border border-gray-700 rounded-xl">
+          <div className="mt-8 p-6 glass-card rounded-xl">
             <h3 className="text-xl font-bold text-white mb-4">Important Notes</h3>
             <ul className="space-y-2 text-gray-300 list-disc pl-5">
               <li>Rush fees apply: +20% (1-2 weeks), +50% (&lt;1 week), +100% (&lt;3 days)</li>
@@ -797,7 +802,7 @@ const Landing = () => {
       </section>
 
       {/* Quick Fix Services Section */}
-      <section id="quick-fix" className="py-20 bg-gray-950">
+      <section id="quick-fix" className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Quick Fix Services</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
@@ -805,7 +810,7 @@ const Landing = () => {
           </p>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-xl">
+            <table className="min-w-full glass-card rounded-xl overflow-hidden">
               <thead>
                 <tr>
                   <th className="p-4 border-b text-left text-gray-300">Service</th>
@@ -848,14 +853,14 @@ const Landing = () => {
       </section>
 
       {/* Smart Tier Recommender */}
-      <section id="tier-recommender" className="py-20 bg-gradient-to-r from-blue-900/30 to-purple-900/30">
+      <section id="tier-recommender" className="py-20 bg-gradient-to-r from-blue-900/10 to-purple-900/10">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-4 text-white">Find Your Perfect Maintenance Plan</h2>
           <p className="text-gray-300 text-center mb-12 max-w-2xl mx-auto">
             Answer a few questions to get a personalized recommendation
           </p>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
+          <div className="glass-card rounded-2xl p-8">
             <div className="space-y-6">
               <div>
                 <h3 className="text-xl font-bold text-white mb-4">What's your monthly business revenue?</h3>
@@ -869,9 +874,9 @@ const Landing = () => {
                     <button
                       key={option.value}
                       onClick={() => handleRevenueSelect(option.value)}
-                      className={`cursor-pointer p-4 rounded-lg transition-all text-left ${selectedRevenue === option.value
-                        ? 'bg-blue-600/20 border-2 border-blue-500'
-                        : 'bg-gray-900 border border-gray-700 hover:border-blue-500'
+                      className={`cursor-pointer p-4 rounded-xl transition-all text-left ${selectedRevenue === option.value
+                        ? 'bg-blue-600/20 border-2 border-blue-500/50'
+                        : 'glass border border-white/[0.08] hover:border-blue-500/30'
                         }`}
                     >
                       <div className="flex items-center gap-3">
@@ -889,7 +894,7 @@ const Landing = () => {
               </div>
 
               {recommendedTier && (
-                <div className="text-center py-8 bg-gray-900 border border-gray-700 rounded-xl">
+                <div className="text-center py-8 glass-card rounded-xl">
                   <h3 className="text-2xl font-bold text-white mb-4">Your Recommended Maintenance Plan</h3>
                   <div className="text-6xl mb-4">{recommendedTier.icon}</div>
                   <h3 className="text-xl font-bold text-blue-400 mb-2">{recommendedTier.name}</h3>
@@ -904,7 +909,7 @@ const Landing = () => {
                       </li>
                     ))}
                   </ul>
-                  <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-all hover:scale-105">
+                  <Link to="/inquiry" className="inline-block px-8 py-3 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-lg font-medium transition-all hover:scale-105 shadow-lg shadow-blue-500/20">
                     Start Inquiry
                   </Link>
                 </div>
@@ -915,7 +920,7 @@ const Landing = () => {
       </section>
 
       {/* Ready-to-Deploy Templates Section */}
-      <section id="templates" className="py-20 bg-gray-950">
+      <section id="templates" className="py-20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <span className="inline-block px-4 py-1.5 bg-green-600/20 text-green-400 text-sm font-semibold rounded-full mb-4">
@@ -932,7 +937,7 @@ const Landing = () => {
               <Link
                 key={t.id}
                 to={`/templates/${t.id}`}
-                className="group bg-gray-900/80 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                className="group glass-card-hover rounded-xl overflow-hidden"
               >
                 <div className="relative aspect-[16/10] overflow-hidden">
                   <img
@@ -964,7 +969,7 @@ const Landing = () => {
           <div className="text-center">
             <Link
               to="/templates"
-              className="inline-flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-all hover:scale-105"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-green-600/80 hover:bg-green-500/80 backdrop-blur-sm text-white rounded-xl font-semibold transition-all hover:scale-105 shadow-lg shadow-green-500/20"
             >
               Browse All Templates
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -976,15 +981,15 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
+      <section className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-4 text-white">Ready to build your system?</h2>
           <p className="text-xl text-gray-300 mb-8">Get a free detailed proposal — no commitment, no monthly lock-in.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
+            <Link to="/inquiry" className="inline-block px-10 py-4 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-xl font-semibold text-lg transition-all hover:scale-105 shadow-lg shadow-blue-500/25">
               Start Custom Project
             </Link>
-            <Link to="/templates" className="inline-block px-10 py-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded-xl font-semibold text-lg transition-all hover:scale-105">
+            <Link to="/templates" className="inline-block px-10 py-4 glass-card-hover text-white rounded-xl font-semibold text-lg">
               Browse Templates
             </Link>
           </div>
@@ -992,7 +997,7 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 border-t border-gray-800 py-12">
+      <footer className="glass-header py-12">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
@@ -1020,7 +1025,7 @@ const Landing = () => {
               </a>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-center text-gray-500">
+          <div className="border-t border-white/[0.08] pt-8 text-center text-gray-500">
             © 2026 CronzPH. All rights reserved.
           </div>
         </div>

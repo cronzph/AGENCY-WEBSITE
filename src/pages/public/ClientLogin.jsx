@@ -138,8 +138,12 @@ const ClientLogin = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-            <div className="max-w-md w-full">
+        <div className="min-h-screen flex items-center justify-center p-4 relative">
+            {/* Background Orbs */}
+            <div className="bg-orb bg-orb-1" />
+            <div className="bg-orb bg-orb-2" />
+
+            <div className="max-w-md w-full relative z-10">
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-white">
@@ -149,13 +153,13 @@ const ClientLogin = () => {
                 </div>
 
                 {/* Login Form */}
-                <div className="bg-gray-800 rounded-lg p-8">
+                <div className="glass-card rounded-2xl p-8">
                     <h2 className="text-2xl font-bold text-white mb-6 text-center">
                         Access Your Project
                     </h2>
 
                     {error && (
-                        <div className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-6">
+                        <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6 backdrop-blur-sm">
                             {error}
                         </div>
                     )}
@@ -172,7 +176,7 @@ const ClientLogin = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Enter your email"
-                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-3 glass-input rounded-xl text-white placeholder-gray-400 focus:outline-none"
                                 />
                                 <p className="text-gray-500 text-sm mt-2">
                                     Use the same email you provided when submitting your inquiry.
@@ -182,7 +186,7 @@ const ClientLogin = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold disabled:opacity-50"
+                                className="w-full py-3 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-xl font-semibold disabled:opacity-50 transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
                             >
                                 {isLoading ? 'Verifying...' : 'Continue'}
                             </button>
@@ -190,7 +194,7 @@ const ClientLogin = () => {
                     ) : (
                         /* Step 2: Password */
                         <form onSubmit={handlePasswordSubmit}>
-                            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+                            <div className="mb-4 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl">
                                 <p className="text-gray-400 text-sm">
                                     Logging in as: <span className="text-white font-medium">{email}</span>
                                 </p>
@@ -212,7 +216,7 @@ const ClientLogin = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-3 glass-input rounded-xl text-white placeholder-gray-400 focus:outline-none"
                                 />
                                 <p className="text-gray-500 text-sm mt-2">
                                     Enter the password you set after accepting your proposal.
@@ -222,7 +226,7 @@ const ClientLogin = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold disabled:opacity-50"
+                                className="w-full py-3 bg-blue-600/80 hover:bg-blue-500/80 backdrop-blur-sm text-white rounded-xl font-semibold disabled:opacity-50 transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
                             >
                                 {isLoading ? 'Verifying...' : '🔒 Login'}
                             </button>
@@ -232,7 +236,7 @@ const ClientLogin = () => {
 
                 {/* Back Link */}
                 <div className="text-center mt-6">
-                    <Link to="/" className="text-gray-400 hover:text-white">
+                    <Link to="/" className="text-gray-400 hover:text-white transition-colors">
                         ← Back to Homepage
                     </Link>
                 </div>

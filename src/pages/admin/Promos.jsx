@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
-import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+    collection, doc, setDoc, deleteDoc, getDocs,
+    query, orderBy, updateDoc, serverTimestamp, where
+} from 'firebase/firestore';
 import { useToast } from '../../components/shared/Toast';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 
@@ -13,6 +16,328 @@ const generatePromoCode = (length = 8) => {
     return code;
 };
 
+const formatDate = (ts) => {
+    if (!ts) return '—';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+// ─── Usage History Panel (per-promo) ─────────────────────────────────────────
+const UsageHistoryPanel = ({ promoId, promoCode, onBack }) => {
+    const [usages, setUsages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        const fetchUsage = async () => {
+            setLoading(true);
+            try {
+                const q = query(
+                    collection(db, 'promoUsage'),
+                    where('promoId', '==', promoId),
+                    orderBy('usedAt', 'desc')
+                );
+                const snap = await getDocs(q);
+                setUsages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.error('Error fetching usage:', err);
+            }
+            setLoading(false);
+        };
+        fetchUsage();
+    }, [promoId]);
+
+    const filtered = usages.filter(u => {
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return (
+            u.clientName?.toLowerCase().includes(s) ||
+            u.email?.toLowerCase().includes(s) ||
+            u.templateName?.toLowerCase().includes(s)
+        );
+    });
+
+    return (
+        <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">📋 Usage History</h2>
+                    <p className="text-gray-400 text-sm mt-1">
+                        Clients who used promo code{' '}
+                        <span className="font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">
+                            {promoCode}
+                        </span>
+                    </p>
+                </div>
+                <button onClick={onBack} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    ← Back
+                </button>
+            </div>
+
+            <div className="relative mb-5">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by client name, email, or template..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">Total Uses</p>
+                    <p className="text-2xl font-bold text-white">{usages.length}</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">Unique Clients</p>
+                    <p className="text-2xl font-bold text-blue-400">{new Set(usages.map(u => u.email)).size}</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 col-span-2 sm:col-span-1">
+                    <p className="text-gray-400 text-sm">Templates Covered</p>
+                    <p className="text-2xl font-bold text-purple-400">{new Set(usages.map(u => u.templateName).filter(Boolean)).size}</p>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="text-center py-20 bg-gray-900 border border-gray-800 rounded-2xl">
+                    <div className="text-5xl mb-4">📭</div>
+                    <h3 className="text-lg font-bold text-white mb-2">
+                        {usages.length === 0 ? 'No usage yet' : 'No results found'}
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                        {usages.length === 0 ? 'This promo code has not been used by any client yet.' : 'Try adjusting your search.'}
+                    </p>
+                </div>
+            ) : (
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-800">
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Client</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Template</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Discount</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Project ID</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Used At</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-800">
+                                {filtered.map(u => (
+                                    <tr key={u.id} className="hover:bg-gray-800/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <p className="text-white font-medium">{u.clientName}</p>
+                                            <p className="text-gray-500 text-xs mt-0.5">{u.email}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-gray-300 text-sm">{u.templateName || '—'}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-green-400 font-bold text-sm">
+                                                {u.discountType === 'percentage' ? `${u.discountValue}% OFF` : `₱${u.discountValue?.toLocaleString()} OFF`}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {u.projectId
+                                                ? <span className="text-blue-400 text-xs font-mono" title={u.projectId}>{u.projectId.slice(0, 8)}…</span>
+                                                : <span className="text-gray-600 text-xs">—</span>}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-gray-400 text-sm">{formatDate(u.usedAt)}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="px-6 py-3 border-t border-gray-800 text-xs text-gray-500">
+                        Showing {filtered.length} of {usages.length} uses
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Global Usage Log Panel ───────────────────────────────────────────────────
+const GlobalUsageLog = ({ onBack }) => {
+    const [usages, setUsages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [filterCode, setFilterCode] = useState('all');
+
+    useEffect(() => {
+        const fetchAll = async () => {
+            setLoading(true);
+            try {
+                const q = query(collection(db, 'promoUsage'), orderBy('usedAt', 'desc'));
+                const snap = await getDocs(q);
+                setUsages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.error('Error fetching global usage:', err);
+            }
+            setLoading(false);
+        };
+        fetchAll();
+    }, []);
+
+    const allCodes = [...new Set(usages.map(u => u.promoCode).filter(Boolean))];
+
+    const thisMonthCount = usages.filter(u => {
+        if (!u.usedAt) return false;
+        const d = u.usedAt.toDate ? u.usedAt.toDate() : new Date(u.usedAt);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+
+    const filtered = usages.filter(u => {
+        if (filterCode !== 'all' && u.promoCode !== filterCode) return false;
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return (
+            u.clientName?.toLowerCase().includes(s) ||
+            u.email?.toLowerCase().includes(s) ||
+            u.templateName?.toLowerCase().includes(s) ||
+            u.promoCode?.toLowerCase().includes(s)
+        );
+    });
+
+    return (
+        <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">📊 Global Promo Usage Log</h2>
+                    <p className="text-gray-400 text-sm mt-1">All promo code redemptions across all clients</p>
+                </div>
+                <button onClick={onBack} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    ← Back to Promos
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">Total Redemptions</p>
+                    <p className="text-2xl font-bold text-white">{usages.length}</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">Unique Clients</p>
+                    <p className="text-2xl font-bold text-blue-400">{new Set(usages.map(u => u.email)).size}</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">Codes Used</p>
+                    <p className="text-2xl font-bold text-purple-400">{allCodes.length}</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <p className="text-gray-400 text-sm">This Month</p>
+                    <p className="text-2xl font-bold text-green-400">{thisMonthCount}</p>
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                <div className="relative flex-1">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search by client, email, template, or code..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                </div>
+                {allCodes.length > 0 && (
+                    <select
+                        value={filterCode}
+                        onChange={e => setFilterCode(e.target.value)}
+                        className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="all">All Codes</option>
+                        {allCodes.map(code => (
+                            <option key={code} value={code}>{code}</option>
+                        ))}
+                    </select>
+                )}
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="text-center py-20 bg-gray-900 border border-gray-800 rounded-2xl">
+                    <div className="text-5xl mb-4">📭</div>
+                    <h3 className="text-lg font-bold text-white mb-2">
+                        {usages.length === 0 ? 'No promo usage yet' : 'No results found'}
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                        {usages.length === 0
+                            ? "When clients apply promo codes during inquiries, they'll appear here."
+                            : 'Try adjusting your search or filter.'}
+                    </p>
+                </div>
+            ) : (
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-800">
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Client</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Promo Code</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Template</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Discount</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Project ID</th>
+                                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Used At</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-800">
+                                {filtered.map(u => (
+                                    <tr key={u.id} className="hover:bg-gray-800/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <p className="text-white font-medium">{u.clientName}</p>
+                                            <p className="text-gray-500 text-xs mt-0.5">{u.email}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded text-sm">
+                                                {u.promoCode}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-gray-300 text-sm">{u.templateName || '—'}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-green-400 font-bold text-sm">
+                                                {u.discountType === 'percentage' ? `${u.discountValue}% OFF` : `₱${u.discountValue?.toLocaleString()} OFF`}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {u.projectId
+                                                ? <span className="text-blue-400 text-xs font-mono" title={u.projectId}>{u.projectId.slice(0, 8)}…</span>
+                                                : <span className="text-gray-600 text-xs">—</span>}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-gray-400 text-sm">{formatDate(u.usedAt)}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="px-6 py-3 border-t border-gray-800 text-xs text-gray-500">
+                        Showing {filtered.length} of {usages.length} redemptions
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Main Promos Page ─────────────────────────────────────────────────────────
 const Promos = () => {
     const { showToast } = useToast();
     const [promos, setPromos] = useState([]);
@@ -21,6 +346,9 @@ const Promos = () => {
     const [saving, setSaving] = useState(false);
     const [deleteId, setDeleteId] = useState(null);
     const [templates, setTemplates] = useState([]);
+    // view: 'list' | 'editor' | 'usage' | 'global-log'
+    const [view, setView] = useState('list');
+    const [selectedPromo, setSelectedPromo] = useState(null);
 
     const emptyForm = {
         code: '',
@@ -73,6 +401,7 @@ const Promos = () => {
     const openNew = () => {
         setForm({ ...emptyForm, code: generatePromoCode() });
         setEditing('new');
+        setView('editor');
     };
 
     const openEdit = (promo) => {
@@ -85,11 +414,18 @@ const Promos = () => {
             discountValue: promo.discountValue?.toString() || '',
         });
         setEditing(promo);
+        setView('editor');
+    };
+
+    const openUsage = (promo) => {
+        setSelectedPromo(promo);
+        setView('usage');
     };
 
     const closeEditor = () => {
         setEditing(null);
         setForm({ ...emptyForm });
+        setView('list');
     };
 
     const handleGenerateCode = () => {
@@ -109,7 +445,6 @@ const Promos = () => {
             showToast('Percentage discount cannot exceed 100%', 'error');
             return;
         }
-
         setSaving(true);
         try {
             const id = editing === 'new' ? form.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : editing.id;
@@ -121,12 +456,8 @@ const Promos = () => {
                 usedSlots: form.usedSlots || 0,
             };
             delete data.id;
-
-            if (editing === 'new') {
-                data.createdAt = serverTimestamp();
-            }
+            if (editing === 'new') data.createdAt = serverTimestamp();
             data.updatedAt = serverTimestamp();
-
             await setDoc(doc(db, 'promos', id), data);
             showToast(editing === 'new' ? 'Promo created!' : 'Promo updated!', 'success');
             closeEditor();
@@ -179,8 +510,24 @@ const Promos = () => {
         return { text: 'Active', color: 'bg-green-600/20 text-green-400' };
     };
 
-    // Editor View
-    if (editing) {
+    // ── Usage History view ──
+    if (view === 'usage' && selectedPromo) {
+        return (
+            <UsageHistoryPanel
+                promoId={selectedPromo.id}
+                promoCode={selectedPromo.code}
+                onBack={() => { setView('list'); setSelectedPromo(null); }}
+            />
+        );
+    }
+
+    // ── Global Usage Log view ──
+    if (view === 'global-log') {
+        return <GlobalUsageLog onBack={() => setView('list')} />;
+    }
+
+    // ── Editor View ──
+    if (view === 'editor') {
         return (
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
@@ -430,7 +777,7 @@ const Promos = () => {
         );
     }
 
-    // List View
+    // ── List View ──
     return (
         <div className="max-w-6xl mx-auto">
             {/* Header */}
@@ -439,15 +786,26 @@ const Promos = () => {
                     <h2 className="text-2xl font-bold text-white">🎟️ Promo Codes</h2>
                     <p className="text-gray-400 text-sm mt-1">Generate and manage promotional offers for your templates</p>
                 </div>
-                <button
-                    onClick={openNew}
-                    className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Promo
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setView('global-log')}
+                        className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2 text-sm"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                        Usage Log
+                    </button>
+                    <button
+                        onClick={openNew}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        New Promo
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -548,6 +906,17 @@ const Promos = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    {/* Usage History button */}
+                                                    <button
+                                                        onClick={() => openUsage(promo)}
+                                                        className="p-2 text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
+                                                        title="View Usage History"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                        </svg>
+                                                    </button>
+                                                    {/* Toggle Active */}
                                                     <button
                                                         onClick={() => handleToggleActive(promo)}
                                                         className={`p-2 rounded-lg transition-colors ${promo.active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-green-400 hover:bg-green-500/10'}`}
@@ -564,6 +933,7 @@ const Promos = () => {
                                                             </svg>
                                                         )}
                                                     </button>
+                                                    {/* Edit */}
                                                     <button
                                                         onClick={() => openEdit(promo)}
                                                         className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
@@ -573,6 +943,7 @@ const Promos = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
                                                     </button>
+                                                    {/* Delete */}
                                                     <button
                                                         onClick={() => setDeleteId(promo.id)}
                                                         className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"

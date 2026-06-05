@@ -65,16 +65,16 @@ const ConfirmModal = ({
       onClick={onCancel}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
 
       {/* Modal */}
       <div
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150"
+        className="relative glass-modal rounded-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Icon + Title */}
         <div className="flex items-center gap-4 mb-4">
-          <div className={`p-3 rounded-xl ${s.iconBg} shrink-0`}>
+          <div className={`p-3 rounded-xl ${s.iconBg} backdrop-blur-sm shrink-0`}>
             {s.icon}
           </div>
           <h3 className="text-lg font-semibold text-white leading-snug">{title}</h3>
@@ -89,13 +89,13 @@ const ConfirmModal = ({
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-gray-600"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-gray-300 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-gray-600"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${s.confirmBtn}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${s.confirmBtn}`}
           >
             {confirmText}
           </button>

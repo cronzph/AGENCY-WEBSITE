@@ -238,9 +238,9 @@ const Dashboard = () => {
     <div>
       {/* ROW 1 - Key Metrics - Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg shadow-black/20">
+        <div className="glass-card-hover rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-green-500/20 rounded-lg">
+            <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm">
               <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -249,9 +249,9 @@ const Dashboard = () => {
           </div>
           <p className="text-3xl font-bold text-green-400">{formatCurrency(stats.totalRevenue)}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg shadow-black/20">
+        <div className="glass-card-hover rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
+            <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl backdrop-blur-sm">
               <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
@@ -260,9 +260,9 @@ const Dashboard = () => {
           </div>
           <p className="text-3xl font-bold text-blue-400">{stats.activeProjects}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg shadow-black/20">
+        <div className="glass-card-hover rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
+            <div className="p-2 bg-purple-500/10 border border-purple-500/20 rounded-xl backdrop-blur-sm">
               <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
@@ -271,9 +271,9 @@ const Dashboard = () => {
           </div>
           <p className="text-3xl font-bold text-white">{stats.totalClients}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg shadow-black/20">
+        <div className="glass-card-hover rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-yellow-500/20 rounded-lg">
+            <div className="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl backdrop-blur-sm">
               <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -286,7 +286,7 @@ const Dashboard = () => {
 
       {/* ROW 2 - Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
+        <div className="glass-card rounded-2xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Projects by Status</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height={256}>
@@ -296,20 +296,20 @@ const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={statusColors[entry.name] || '#6b7280'} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }} labelStyle={{ color: '#f9fafb' }} itemStyle={{ color: '#9ca3af' }} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', backdropFilter: 'blur(12px)' }} labelStyle={{ color: '#f9fafb' }} itemStyle={{ color: '#9ca3af' }} />
                 <Legend wrapperStyle={{ color: '#9ca3af' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 shadow-lg">
+        <div className="glass-card rounded-2xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Monthly Revenue</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height={256}>
               <BarChart data={monthlyRevenue}>
                 <XAxis dataKey="month" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" tickFormatter={(value) => `₱${value / 1000}k`} />
-                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }} labelStyle={{ color: '#f9fafb' }} formatter={(value) => [formatCurrency(value), 'Revenue']} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', backdropFilter: 'blur(12px)' }} labelStyle={{ color: '#f9fafb' }} formatter={(value) => [formatCurrency(value), 'Revenue']} />
                 <Bar dataKey="amount" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -319,8 +319,8 @@ const Dashboard = () => {
 
       {/* ROW 3 - Two columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
-          <div className="p-4 border-b border-gray-800">
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-white/[0.08]">
             <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
           </div>
           <div className="p-4 max-h-80 overflow-y-auto">
@@ -334,7 +334,7 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-3">
                 {recentActivity.map((activity, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors">
+                  <div key={idx} className="flex items-start gap-3 p-3 bg-white/[0.03] border border-white/[0.05] rounded-xl hover:bg-white/[0.06] transition-all">
                     <span className="text-xl">{activity.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-300 text-sm truncate">{activity.description}</p>
@@ -347,8 +347,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-gray-900 rounded-xl border border-gray-800 shadow-lg overflow-hidden">
-          <div className="p-4 border-b border-gray-800">
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-white/[0.08]">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-white">SaaS Subscribers</h3>
               <span className="text-green-400 font-semibold">{formatCurrency(getTotalMRR())}/month</span>
@@ -365,13 +365,13 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-3">
                 {saasSubscribers.map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors">
+                  <div key={sub.id} className="flex items-center justify-between p-3 bg-white/[0.03] border border-white/[0.05] rounded-xl hover:bg-white/[0.06] transition-all">
                     <div>
                       <p className="text-white text-sm font-medium">{sub.clientName}</p>
                       <p className="text-gray-500 text-xs">{sub.businessName}</p>
                     </div>
                     <div className="text-right">
-                      <span className="inline-block px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs capitalize">
+                      <span className="inline-block px-2 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-lg text-xs capitalize">
                         {sub.aiAssessment?.sassTier || 'starter'}
                       </span>
                       <p className="text-green-400 text-sm font-medium">{formatCurrency(sub.aiAssessment?.monthlySassPrice || 0)}/mo</p>

@@ -227,19 +227,24 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen relative">
+      {/* Background Orbs */}
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+      <div className="bg-orb bg-orb-3" />
+
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-gray-900 border-r border-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 glass-sidebar transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-white/[0.08]">
           <span className="text-xl font-bold text-white">AgencyAdmin</span>
           <button
             className="lg:hidden text-gray-400 hover:text-white"
@@ -250,7 +255,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -258,9 +263,9 @@ const AdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
+                  ? 'bg-blue-500/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/10'
+                  : 'text-gray-400 hover:bg-white/[0.05] hover:text-white border border-transparent'
                   }`}
               >
                 <item.icon />
@@ -271,10 +276,10 @@ const AdminLayout = () => {
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-800 shrink-0">
+        <div className="p-4 border-t border-white/[0.08] shrink-0">
           <button
             onClick={() => setLogoutModalOpen(true)}
-            className="flex items-center gap-3 w-full px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-gray-400 hover:text-white hover:bg-white/[0.05] rounded-xl transition-colors"
           >
             <LogoutIcon />
             <span className="font-medium">Logout</span>
@@ -283,14 +288,14 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <div className="lg:pl-64 min-h-screen bg-gray-950">
+      <div className="lg:pl-64 min-h-screen relative z-10">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800 shadow-sm">
+        <header className="sticky top-0 z-30 glass-header">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6">
             {/* Left side - Menu button and Page title */}
             <div className="flex items-center gap-4">
               <button
-                className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"
+                className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-white/[0.05] rounded-lg"
                 onClick={() => setSidebarOpen(true)}
               >
                 <MenuIcon />
@@ -304,18 +309,18 @@ const AdminLayout = () => {
               <div className="relative" ref={notificationRef}>
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                  className="relative p-2 text-gray-400 hover:text-white hover:bg-white/[0.08] rounded-lg transition-colors"
                 >
                   <BellIcon />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                   )}
                 </button>
 
                 {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-700">
+                  <div className="absolute right-0 mt-2 w-80 glass-dropdown rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-white/[0.08]">
                       <h3 className="font-semibold text-white">Notifications</h3>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
@@ -327,7 +332,7 @@ const AdminLayout = () => {
                             key={notif.id}
                             to={getNotificationLink(notif.type)}
                             onClick={() => setShowNotifications(false)}
-                            className="block px-4 py-3 hover:bg-gray-700 border-b border-gray-700 last:border-0"
+                            className="block px-4 py-3 hover:bg-white/[0.05] border-b border-white/[0.05] last:border-0 transition-colors"
                           >
                             <p className="text-sm text-gray-300">{notif.message}</p>
                             <p className="text-xs text-gray-500 mt-1">
@@ -342,8 +347,8 @@ const AdminLayout = () => {
               </div>
 
               {/* Admin Avatar */}
-              <div className="flex items-center gap-3 pl-3 border-l border-gray-700">
-                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="flex items-center gap-3 pl-3 border-l border-white/[0.1]">
+                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg shadow-blue-500/20">
                   {adminInitial}
                 </div>
               </div>
